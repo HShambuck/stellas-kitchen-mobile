@@ -1,9 +1,11 @@
 {
   "name": "stellas-kitchen-mobile",
+  "description": "Official companion mobile application for Stella's Kitchen (Shai Hills), featuring specialized functional workspaces for internal kitchen staff and delivery riders.",
   "main": "expo-router/entry",
   "version": "1.0.0",
   "dependencies": {
     "@expo/ui": "~56.0.18",
+    "@react-navigation/native": "^7.3.4",
     "axios": "^1.18.1",
     "expo": "~56.0.12",
     "expo-constants": "~56.0.18",
