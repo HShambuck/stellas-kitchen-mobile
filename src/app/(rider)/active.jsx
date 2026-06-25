@@ -1,23 +1,24 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  RefreshControl,
-  Alert,
   ActivityIndicator,
+  Alert,
   Linking,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
   TouchableOpacity,
+  View,
 } from "react-native";
-import SafeView from "../../components/common/SafeView";
-import Button from "../../components/common/Button";
-import StatusBadge from "../../components/orders/StatusBadge";
 import { getMyActiveDelivery, updateOrderStatus } from "../../api/orders"; // Ensure getMyActiveDelivery calls /api/riders/my-deliveries
-import { COLORS, FONT_SIZES, SPACING, RADIUS } from "../../constants/theme";
+import Button from "../../components/common/Button";
+import SafeView from "../../components/common/SafeView";
+import StatusBadge from "../../components/orders/StatusBadge";
+import { COLORS, FONT_SIZES, RADIUS, SPACING } from "../../constants/theme";
 
 // Mapping status enums cleanly to presentation labels
 const ORDER_STATUS = {
+  READY_FOR_DISPATCH: "Ready for Dispatch", // 💡 Matches your model exactly
   OUT_FOR_DELIVERY: "Out for Delivery",
   DELIVERED: "Delivered",
 };
@@ -72,13 +73,18 @@ export default function ActiveDelivery() {
 
   const fetchDeliveriesFlow = useCallback(async () => {
     try {
-      // 💡 This hits your new GET /api/riders/my-deliveries endpoint returning an array
       const rawJobs = await getMyActiveDelivery();
       const jobsArray = Array.isArray(rawJobs) ? rawJobs : [];
 
-      // 💡 Split the array into active and recently delivered runs
-      const active = jobsArray.find(job => job.statusState === ORDER_STATUS.OUT_FOR_DELIVERY);
-      const history = jobsArray.filter(job => job.statusState === ORDER_STATUS.DELIVERED);
+      // 💡 Read both status or statusState fallbacks dynamically
+      const active = jobsArray.find(job =>
+        job.status === ORDER_STATUS.OUT_FOR_DELIVERY ||
+        job.statusState === ORDER_STATUS.OUT_FOR_DELIVERY
+      );
+      const history = jobsArray.filter(job =>
+        job.status === ORDER_STATUS.DELIVERED ||
+        job.statusState === ORDER_STATUS.DELIVERED
+      );
 
       setActiveJob(active || null);
       setHistoryJobs(history);
@@ -209,9 +215,12 @@ export default function ActiveDelivery() {
                   <Text style={styles.cardSectionTitle}>Items Details</Text>
                   {(activeJob.items || []).map((item, i) => (
                     <View key={i} style={styles.itemRow}>
-                      <Text style={styles.itemQty}>{item.quantity}×</Text>
-                      <Text style={styles.itemName}>{item.name}</Text>
-                      <Text style={styles.itemPrice}>GHS {(item.price * item.quantity).toFixed(2)}</Text>
+                      <Text style={styles.itemQty}>{item.quantity || 1}×</Text>
+                      <Text style={styles.itemName}>{item.name || item.menuItemName || 'Item'}</Text>
+                      {/* 💡 Safely handle price calculating with fallbacks */}
+                      <Text style={styles.itemPrice}>
+                        GHS {((item.price || item.unitPrice || 0) * (item.quantity || 1)).toFixed(2)}
+                      </Text>
                     </View>
                   ))}
                 </View>

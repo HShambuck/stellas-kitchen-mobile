@@ -40,7 +40,7 @@ function DeliveryDetailModal({ order, visible, onClose, onAccept, accepting }) {
           <View style={styles.detailCard}>
             <Text style={styles.detailLabel}>🛍️ Items</Text>
             <Text style={styles.detailValue}>
-              {(order.items || []).map((i) => `${i.quantity}× ${i.name}`).join("\n")}
+              {(order.items || []).map((i) => `${i.quantity || 1}× ${i.name || i.menuItemName || 'Item'}`).join("\n")}
             </Text>
           </View>
           <View style={styles.detailCard}>
