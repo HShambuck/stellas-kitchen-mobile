@@ -1,33 +1,46 @@
-import React, { useEffect } from "react";
-import { Stack } from "expo-router";
-import { SafeAreaProvider } from "react-native-safe-area-context";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { StyleSheet } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
+import { Stack } from "expo-router";
+import { useEffect } from "react";
+import { StyleSheet } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "../context/AuthContext";
+import { ThemeProvider } from "../context/ThemeContext";
 import "../global.css";
 
-// Keep splash visible until fonts/session are ready
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   useEffect(() => {
-    // AuthProvider handles session restoration; hide splash after mount
-    const timer = setTimeout(() => SplashScreen.hideAsync(), 300);
+    const timer = setTimeout(() => SplashScreen.hideAsync(), 400);
     return () => clearTimeout(timer);
   }, []);
 
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
+        <ThemeProvider>
+        {/*
+          AuthProvider must wrap the ENTIRE Stack so every screen —
+          including index.jsx — can call useAuth() without crashing.
+          Previously AuthProvider was inside the tree at the same level
+          as the screens it needed to protect.
+        */}
         <AuthProvider>
-          <Stack screenOptions={{ headerShown: false, animation: "fade" }}>
-            <Stack.Screen name="index"       options={{ headerShown: false }} />
-            <Stack.Screen name="(auth)"      options={{ headerShown: false }} />
-            <Stack.Screen name="(staff)"     options={{ headerShown: false }} />
-            <Stack.Screen name="(rider)"     options={{ headerShown: false }} />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              animation: "fade",
+              contentStyle: { backgroundColor: "transparent" },
+            }}
+          >
+            <Stack.Screen name="index" options={{ headerShown: false }} />
+            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+            <Stack.Screen name="(staff)" options={{ headerShown: false }} />
+            <Stack.Screen name="(rider)" options={{ headerShown: false }} />
           </Stack>
         </AuthProvider>
+        </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

@@ -142,7 +142,7 @@ if (currentRole === "staff" || currentRole === ROLES.STAFF?.toLowerCase()) {
       // with the token nested inside it.
       const responseData = await apiRegister(payload);
       const token = responseData.token;
-      const user = responseData; // The whole object contains _id, name, role, etc.
+      const { token: _drop, ...user } = responseData; // The whole object contains _id, name, role, etc.
 
       await persistSession(token, user);
       dispatch({ type: "SIGN_IN", user, token });
@@ -160,7 +160,7 @@ if (currentRole === "staff" || currentRole === ROLES.STAFF?.toLowerCase()) {
       // 💡 Do the exact same thing for login to stay unified
       const responseData = await apiLogin(phoneNumber, password, role);
       const token = responseData.token;
-      const user = responseData;
+      const { token: _drop, ...user } = responseData;
 
       await persistSession(token, user);
       dispatch({ type: "SIGN_IN", user, token });

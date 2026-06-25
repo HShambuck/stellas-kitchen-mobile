@@ -24,11 +24,11 @@ export default function Index() {
     return <Redirect href="/(auth)/user-type" />;
   }
 
-  if (user?.role === ROLES.STAFF) {
+  if (user?.role?.toLowerCase() === ROLES.STAFF) {
     return <Redirect href="/(staff)/dashboard" />;
   }
 
-  if (user?.role === ROLES.RIDER) {
+  if (user?.role?.toLowerCase() === ROLES.RIDER) {
     return <Redirect href="/(rider)/queue" />;
   }
 

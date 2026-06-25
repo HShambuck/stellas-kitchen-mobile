@@ -1,135 +1,100 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Modal,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+  ActivityIndicator, Alert, FlatList, Modal, RefreshControl,
+  StyleSheet, Text, TouchableOpacity, View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getPendingOrders, updateOrderStatus } from "../../api/orders";
 import Button from "../../components/common/Button";
 import SafeView from "../../components/common/SafeView";
 import OrderCard from "../../components/orders/OrderCard";
 import StatusBadge from "../../components/orders/StatusBadge";
 import {
-  COLORS, FONT_SIZES,
-  RADIUS,
-  SPACING,
+  COLORS, DARK_THEME, FONT_SIZES, LIGHT_THEME,
+  ORDER_STATUS, ORDER_STATUS_LABELS, RADIUS, SPACING,
 } from "../../constants/theme";
 import { useAuth } from "../../context/AuthContext";
-
-// Next valid status transitions for kitchen staff
-const ORDER_STATUS = {
-  PENDING: "Pending",
-  PREPARING: "Preparing",
-  READY_FOR_PICKUP: "Ready for Dispatch",
-};
-
-const ORDER_STATUS_LABELS = {
-  "Pending": "Pending",
-  "Preparing": "Preparing",
-  "Ready for Dispatch": "Ready",
-};
+import { useTheme } from "../../context/ThemeContext";
 
 const STAFF_TRANSITIONS = {
-  [ORDER_STATUS.PENDING]: [ORDER_STATUS.PREPARING],
-  [ORDER_STATUS.PREPARING]: [ORDER_STATUS.READY_FOR_PICKUP],
-  [ORDER_STATUS.READY_FOR_PICKUP]: [], // Rider takes over
+  [ORDER_STATUS.PENDING]:        [ORDER_STATUS.PREPARING],
+  [ORDER_STATUS.PREPARING]:      [ORDER_STATUS.READY_FOR_PICKUP],
+  [ORDER_STATUS.READY_FOR_PICKUP]: [],
 };
 
-// Summary counts for the top bar
-function SummaryPill({ label, count, color }) {
+function SummaryPill({ label, count, color, theme }) {
   return (
-    <View style={[styles.pill, { borderColor: color }]}>
+    <View style={[styles.pill, { borderColor: color, backgroundColor: theme.card }]}>
       <Text style={[styles.pillCount, { color }]}>{count}</Text>
-      <Text style={styles.pillLabel}>{label}</Text>
+      <Text style={[styles.pillLabel, { color: theme.textMuted }]}>{label}</Text>
     </View>
   );
 }
 
-// Order detail + action modal
-function OrderDetailModal({ order, visible, onClose, onStatusChange }) {
+function OrderDetailModal({ order, visible, onClose, onStatusChange, theme }) {
   const [loading, setLoading] = useState(false);
   if (!order) return null;
 
-  const transitions = STAFF_TRANSITIONS[order.statusState || order.status] ?? [];
+  const transitions = STAFF_TRANSITIONS[order.statusState] ?? [];
 
   const handleUpdate = async (newStatus) => {
     setLoading(true);
     try {
-      await onStatusChange((order._id || order.id), newStatus);
+      await onStatusChange(order._id || order.id, newStatus);
       onClose();
     } catch (e) {
       Alert.alert("Error", e.message || "Could not update order status.");
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.modalBackdrop}>
-        <View style={styles.modalSheet}>
-          {/* Handle */}
-          <View style={styles.modalHandle} />
-
-          <Text style={styles.modalTitle}>
-            Order #{String(order._id || order.id).slice(-4).toUpperCase()}
+        <View style={[styles.modalSheet, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <View style={[styles.modalHandle, { backgroundColor: theme.border }]} />
+          <Text style={[styles.modalTitle, { color: theme.text }]}>
+            Order #{String(order._id || order.id).slice(-5).toUpperCase()}
           </Text>
 
-          <View style={styles.modalRow}>
-            <Text style={styles.modalLabel}>Customer</Text>
-            <Text style={styles.modalValue}>{order.customerName || "Web Customer"}</Text>
-          </View>
-          
-          <View style={styles.modalRow}>
-            <Text style={styles.modalLabel}>Details/Address</Text>
-            <Text style={styles.modalValue}>
-              {order.deliveryAddress || (order.tableNumber ? `Table ${order.tableNumber}` : "In-Kitchen")}
-            </Text>
-          </View>
+          {[
+            { label: "Customer", value: order.customerName },
+            { label: "Address",  value: order.deliveryAddress },
+          ].map(({ label, value }) => (
+            <View key={label} style={[styles.modalRow, { borderBottomColor: theme.border }]}>
+              <Text style={[styles.modalLabel, { color: theme.textMuted }]}>{label}</Text>
+              <Text style={[styles.modalValue, { color: theme.text }]}>{value}</Text>
+            </View>
+          ))}
 
-          <View style={styles.modalRow}>
-            <Text style={styles.modalLabel}>Status</Text>
-            <StatusBadge status={order.statusState || order.status} />
+          <View style={[styles.modalRow, { borderBottomColor: theme.border }]}>
+            <Text style={[styles.modalLabel, { color: theme.textMuted }]}>Status</Text>
+            <StatusBadge status={order.statusState} />
           </View>
 
-          {/* Items Header */}
-          <Text style={[styles.modalLabel, { marginTop: SPACING.lg, marginBottom: SPACING.xs }]}>
-            Items
-          </Text>
-
-          {/* Items Mapping Matrix */}
-          {(order.items || []).map((item, i) => (
-            <View key={i} style={styles.itemRow}>
-              {/* 💡 FIX 1: Pure cleanly styled single integer count layout */}
-              <Text style={styles.itemQty}>{item.quantity}</Text>
-              <Text style={styles.itemName}>{item.foodItemName || item.name}</Text>
-              <Text style={styles.itemPrice}>GHS {Number(item.price * item.quantity).toFixed(2)}</Text>
+          <Text style={[styles.modalLabel, { color: theme.textMuted, marginTop: SPACING.lg }]}>Items</Text>
+          {(order.items || []).map((item) => (
+            <View key={item.foodItemName} style={styles.itemRow}>
+              <Text style={styles.itemQty}>{item.quantity}×</Text>
+              <Text style={[styles.itemName, { color: theme.text }]}>{item.foodItemName}</Text>
+              <Text style={[styles.itemPrice, { color: theme.textMuted }]}>
+                GHS {((item.price || 0) * (item.quantity || 1)).toFixed(2)}
+              </Text>
             </View>
           ))}
 
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>GHS {Number(order.totalAmount || order.totalPrice || 0).toFixed(2)}</Text>
+            <Text style={[styles.totalLabel, { color: theme.textMuted }]}>Total</Text>
+            <Text style={styles.totalValue}>
+              GHS {Number(order.totalAmount || order.totalPrice || 0).toFixed(2)}
+            </Text>
           </View>
 
-          {/* Transition buttons */}
           {transitions.length > 0 && (
-            <View style={styles.actionsWrap}>
+            <View style={{ marginTop: SPACING.xl }}>
               {transitions.map((s) => (
                 <Button
                   key={s}
-                  label={loading ? "" : `Mark as ${ORDER_STATUS_LABELS[s] || s}`}
+                  label={`Mark as ${ORDER_STATUS_LABELS[s]}`}
                   loading={loading}
                   onPress={() => handleUpdate(s)}
                   size="md"
@@ -139,43 +104,38 @@ function OrderDetailModal({ order, visible, onClose, onStatusChange }) {
             </View>
           )}
 
-          <Button
-            variant="ghost"
-            label="Close"
-            onPress={onClose}
-            size="sm"
-            style={{ marginTop: SPACING.md }}
-          />
+          <Button variant="ghost" label="Close" onPress={onClose}
+            size="sm" style={{ marginTop: SPACING.md }} />
         </View>
       </View>
     </Modal>
   );
 }
 
-// ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const { user, signOut } = useAuth();
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const { isDark } = useTheme();
+  const theme = isDark ? DARK_THEME : LIGHT_THEME;
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = 64 + insets.bottom;
+
+  const [orders,        setOrders]        = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [refreshing,    setRefreshing]    = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [filter, setFilter] = useState("ALL");
+  const [filter,        setFilter]        = useState("ALL");
 
   const fetchOrders = useCallback(async () => {
     try {
       const data = await getPendingOrders();
       setOrders(Array.isArray(data) ? data : []);
-    } catch (e) {
-      // Silently fail on refresh; initial load shows empty state
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+    } catch { /* non-fatal */ }
+    finally { setLoading(false); setRefreshing(false); }
   }, []);
 
   useEffect(() => {
     fetchOrders();
-    const interval = setInterval(fetchOrders, 30_000); // poll every 30s
+    const interval = setInterval(fetchOrders, 30_000);
     return () => clearInterval(interval);
   }, [fetchOrders]);
 
@@ -184,55 +144,64 @@ export default function Dashboard() {
     await fetchOrders();
   };
 
-  // Inside Dashboard component:
   const FILTERS = ["ALL", ORDER_STATUS.PENDING, ORDER_STATUS.PREPARING, ORDER_STATUS.READY_FOR_PICKUP];
   const filtered = filter === "ALL" ? orders : orders.filter((o) => o.statusState === filter);
-
   const counts = {
-    pending: orders.filter((o) => o.statusState === ORDER_STATUS.PENDING).length,
+    pending:   orders.filter((o) => o.statusState === ORDER_STATUS.PENDING).length,
     preparing: orders.filter((o) => o.statusState === ORDER_STATUS.PREPARING).length,
-    ready: orders.filter((o) => o.statusState === ORDER_STATUS.READY_FOR_PICKUP).length,
+    ready:     orders.filter((o) => o.statusState === ORDER_STATUS.READY_FOR_PICKUP).length,
   };
 
   return (
-    <SafeView variant="dark">
-      {/* Header */}
+    <SafeView variant={isDark ? "dark" : "light"} edges={["top", "left", "right"]}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>Kitchen Dashboard</Text>
-          <Text style={styles.subGreeting}>Welcome back, {user?.name?.split(" ")[0]}!</Text>
+          <Text style={[styles.greeting, { color: theme.text }]}>Kitchen Dashboard</Text>
+          <Text style={[styles.subGreeting, { color: theme.textMuted }]}>
+            Welcome back, {user?.name?.split(" ")[0]}!
+          </Text>
         </View>
-        <TouchableOpacity onPress={() => Alert.alert("Sign Out", "Are you sure?", [
-          { text: "Cancel", style: "cancel" },
-          { text: "Sign Out", style: "destructive", onPress: signOut },
-        ])} style={styles.signOutBtn}>
-          <Text style={styles.signOutText}>Sign Out</Text>
+        <TouchableOpacity
+          onPress={() =>
+            Alert.alert("Sign Out", "Are you sure?", [
+              { text: "Cancel", style: "cancel" },
+              { text: "Sign Out", style: "destructive", onPress: signOut },
+            ])
+          }
+          style={[styles.signOutBtn, { borderColor: theme.border }]}
+        >
+          <Text style={[styles.signOutText, { color: theme.textMuted }]}>Sign Out</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Summary pills */}
       <View style={styles.pillsRow}>
-        <SummaryPill label="Pending" count={counts.pending} color={COLORS.pending} />
-        <SummaryPill label="Preparing" count={counts.preparing} color={COLORS.preparing} />
-        <SummaryPill label="Ready" count={counts.ready} color={COLORS.ready} />
+        <SummaryPill label="Pending"   count={counts.pending}   color={COLORS.pending}   theme={theme} />
+        <SummaryPill label="Preparing" count={counts.preparing} color={COLORS.preparing} theme={theme} />
+        <SummaryPill label="Ready"     count={counts.ready}     color={COLORS.ready}     theme={theme} />
       </View>
 
-      {/* Filter tabs */}
       <View style={styles.filterRow}>
         {FILTERS.map((f) => (
           <TouchableOpacity
             key={f}
             onPress={() => setFilter(f)}
-            style={[styles.filterChip, filter === f && styles.filterChipActive]}
+            style={[
+              styles.filterChip,
+              { backgroundColor: theme.card, borderColor: theme.border },
+              filter === f && styles.filterChipActive,
+            ]}
           >
-            <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>
+            <Text style={[
+              styles.filterText,
+              { color: theme.textMuted },
+              filter === f && styles.filterTextActive,
+            ]}>
               {f === "ALL" ? "All" : ORDER_STATUS_LABELS[f]}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      {/* Orders list */}
       {loading ? (
         <View style={styles.loadingWrap}>
           <ActivityIndicator color={COLORS.red} size="large" />
@@ -241,7 +210,7 @@ export default function Dashboard() {
         <FlatList
           data={filtered}
           keyExtractor={(item) => String(item._id || item.id)}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: tabBarHeight + SPACING.lg }]}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
@@ -253,14 +222,14 @@ export default function Dashboard() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyIcon}>🍽️</Text>
-              <Text style={styles.emptyTitle}>No orders yet</Text>
-              <Text style={styles.emptyBody}>Pull down to refresh</Text>
+              <Text style={[styles.emptyTitle, { color: theme.text }]}>No orders yet</Text>
+              <Text style={[styles.emptyBody, { color: theme.textFaint }]}>Pull down to refresh</Text>
             </View>
           }
           renderItem={({ item }) => (
             <OrderCard
-              order={{ ...item, id: item._id || item.id }} // 💡 Safely maps the identifier forward
-              variant="dark"
+              order={item}
+              variant={isDark ? "dark" : "light"}
               onPress={() => setSelectedOrder(item)}
             />
           )}
@@ -272,123 +241,45 @@ export default function Dashboard() {
         visible={!!selectedOrder}
         onClose={() => setSelectedOrder(null)}
         onStatusChange={handleStatusChange}
+        theme={theme}
       />
     </SafeView>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: SPACING["2xl"],
-    paddingTop: SPACING.xl,
-    paddingBottom: SPACING.lg,
-  },
-  greeting: {
-    color: COLORS.white, fontSize: FONT_SIZES.xl, fontWeight: "800",
-  },
-  subGreeting: { color: "#9CA3AF", fontSize: FONT_SIZES.sm, marginTop: 2 },
-  signOutBtn: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-    borderRadius: RADIUS.full,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  signOutText: { color: "#9CA3AF", fontSize: FONT_SIZES.xs, fontWeight: "600" },
-
-  pillsRow: {
-    flexDirection: "row",
-    gap: SPACING.sm,
-    paddingHorizontal: SPACING["2xl"],
-    marginBottom: SPACING.lg,
-  },
-  pill: {
-    flex: 1,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1.5,
-    padding: SPACING.md,
-    alignItems: "center",
-    backgroundColor: COLORS.stone,
-  },
-  pillCount: { fontSize: FONT_SIZES["2xl"], fontWeight: "800" },
-  pillLabel: { color: "#9CA3AF", fontSize: FONT_SIZES.xs, marginTop: 2 },
-
-  filterRow: {
-    flexDirection: "row",
-    gap: SPACING.xs,
-    paddingHorizontal: SPACING["2xl"],
-    marginBottom: SPACING.lg,
-    flexWrap: "wrap",
-  },
-  filterChip: {
-    paddingVertical: SPACING.xs,
-    paddingHorizontal: SPACING.md,
-    borderRadius: RADIUS.full,
-    backgroundColor: COLORS.stone,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
+  header:       { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: SPACING["2xl"], paddingTop: SPACING.xl, paddingBottom: SPACING.lg },
+  greeting:     { fontSize: FONT_SIZES.xl, fontWeight: "800" },
+  subGreeting:  { fontSize: FONT_SIZES.sm, marginTop: 2 },
+  signOutBtn:   { paddingHorizontal: SPACING.md, paddingVertical: SPACING.xs, borderRadius: RADIUS.full, borderWidth: 1 },
+  signOutText:  { fontSize: FONT_SIZES.xs, fontWeight: "600" },
+  pillsRow:     { flexDirection: "row", gap: SPACING.sm, paddingHorizontal: SPACING["2xl"], marginBottom: SPACING.lg },
+  pill:         { flex: 1, borderRadius: RADIUS.lg, borderWidth: 1.5, padding: SPACING.md, alignItems: "center" },
+  pillCount:    { fontSize: FONT_SIZES["2xl"], fontWeight: "800" },
+  pillLabel:    { fontSize: FONT_SIZES.xs, marginTop: 2 },
+  filterRow:    { flexDirection: "row", gap: SPACING.xs, paddingHorizontal: SPACING["2xl"], marginBottom: SPACING.lg, flexWrap: "wrap" },
+  filterChip:   { paddingVertical: SPACING.xs, paddingHorizontal: SPACING.md, borderRadius: RADIUS.full, borderWidth: 1 },
   filterChipActive: { backgroundColor: COLORS.red, borderColor: COLORS.red },
-  filterText: { color: "#9CA3AF", fontSize: FONT_SIZES.xs, fontWeight: "600" },
+  filterText:   { fontSize: FONT_SIZES.xs, fontWeight: "600" },
   filterTextActive: { color: COLORS.white },
-
-  list: { paddingHorizontal: SPACING["2xl"], paddingBottom: SPACING["3xl"] },
-  loadingWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
-  empty: { alignItems: "center", paddingVertical: SPACING["4xl"] },
-  emptyIcon: { fontSize: 48, marginBottom: SPACING.lg },
-  emptyTitle: { color: COLORS.white, fontSize: FONT_SIZES.lg, fontWeight: "700" },
-  emptyBody: { color: "#6B7280", fontSize: FONT_SIZES.sm, marginTop: SPACING.xs },
-
-  // Modal
-  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "flex-end" },
-  modalSheet: {
-    backgroundColor: COLORS.stone,
-    borderTopLeftRadius: RADIUS["3xl"],
-    borderTopRightRadius: RADIUS["3xl"],
-    padding: SPACING["2xl"],
-    paddingBottom: SPACING["4xl"],
-    borderTopWidth: 1,
-    borderColor: COLORS.border,
-  },
-  modalHandle: {
-    width: 40, height: 4, borderRadius: 2,
-    backgroundColor: COLORS.border,
-    alignSelf: "center",
-    marginBottom: SPACING.xl,
-  },
-  modalTitle: {
-    color: COLORS.white, fontSize: FONT_SIZES.xl,
-    fontWeight: "800", marginBottom: SPACING.xl, letterSpacing: 1,
-  },
-  modalRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: SPACING.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  modalLabel: { color: "#9CA3AF", fontSize: FONT_SIZES.sm, fontWeight: "600" },
-  modalValue: { color: COLORS.white, fontSize: FONT_SIZES.sm, fontWeight: "600", flex: 1, textAlign: "right" },
-  itemRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: SPACING.xs,
-    gap: SPACING.sm,
-  },
-  itemQty: { color: COLORS.red, fontWeight: "700", width: 24 },
-  itemName: { color: COLORS.white, flex: 1, fontSize: FONT_SIZES.sm },
-  itemPrice: { color: "#9CA3AF", fontSize: FONT_SIZES.sm },
-  totalRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingTop: SPACING.md,
-    marginTop: SPACING.xs,
-  },
-  totalLabel: { color: "#9CA3AF", fontWeight: "700" },
-  totalValue: { color: COLORS.red, fontWeight: "800", fontSize: FONT_SIZES.md },
-  actionsWrap: { marginTop: SPACING.xl },
+  list:         { paddingHorizontal: SPACING["2xl"] },
+  loadingWrap:  { flex: 1, alignItems: "center", justifyContent: "center" },
+  empty:        { alignItems: "center", paddingVertical: SPACING["4xl"] },
+  emptyIcon:    { fontSize: 48, marginBottom: SPACING.lg },
+  emptyTitle:   { fontSize: FONT_SIZES.lg, fontWeight: "700" },
+  emptyBody:    { fontSize: FONT_SIZES.sm, marginTop: SPACING.xs },
+  modalBackdrop:{ flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "flex-end" },
+  modalSheet:   { borderTopLeftRadius: RADIUS["3xl"], borderTopRightRadius: RADIUS["3xl"], padding: SPACING["2xl"], paddingBottom: SPACING["4xl"], borderTopWidth: 1 },
+  modalHandle:  { width: 40, height: 4, borderRadius: 2, alignSelf: "center", marginBottom: SPACING.xl },
+  modalTitle:   { fontSize: FONT_SIZES.xl, fontWeight: "800", marginBottom: SPACING.xl, letterSpacing: 1 },
+  modalRow:     { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: SPACING.sm, borderBottomWidth: 1 },
+  modalLabel:   { fontSize: FONT_SIZES.sm, fontWeight: "600" },
+  modalValue:   { fontSize: FONT_SIZES.sm, fontWeight: "600", flex: 1, textAlign: "right" },
+  itemRow:      { flexDirection: "row", alignItems: "center", paddingVertical: SPACING.xs, gap: SPACING.sm },
+  itemQty:      { color: COLORS.red, fontWeight: "700", width: 24 },
+  itemName:     { flex: 1, fontSize: FONT_SIZES.sm },
+  itemPrice:    { fontSize: FONT_SIZES.sm },
+  totalRow:     { flexDirection: "row", justifyContent: "space-between", paddingTop: SPACING.md, marginTop: SPACING.xs },
+  totalLabel:   { fontWeight: "700" },
+  totalValue:   { color: COLORS.red, fontWeight: "800", fontSize: FONT_SIZES.md },
 });

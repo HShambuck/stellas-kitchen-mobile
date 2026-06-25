@@ -48,10 +48,11 @@ export async function getAvailableDeliveries() {
  *
  * @returns {Promise<Object|null>}
  */
-export async function getMyActiveDelivery() {
-  const res = await client.get("/api/orders/my-active");
-  return res.data;
-}
+export const getMyActiveDelivery = async () => {
+  // 💡 CRUCIAL: Ensure this points to /api/riders/my-deliveries, NOT an old path!
+  const response = await API.get('/riders/my-deliveries'); 
+  return response.data;
+};
 
 /**
  * POST /api/orders/:id/accept

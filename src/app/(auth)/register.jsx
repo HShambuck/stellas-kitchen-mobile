@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -8,19 +8,64 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Button from "../../components/common/Button";
 import SafeView from "../../components/common/SafeView";
 import {
-  COLORS, FONT_SIZES,
-  RADIUS, ROLES,
-  SPACING,
-  VEHICLE_TYPES,
+  COLORS, FONT_SIZES, RADIUS, ROLES, SPACING, VEHICLE_TYPES,
 } from "../../constants/theme";
 import { useAuth } from "../../context/AuthContext";
 
-const INPUT_CLASSES = {
+// ─── Reusable input field ─────────────────────────────────────────────────────
+function FormField({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  secureTextEntry,
+  keyboardType,
+  autoCapitalize,
+  returnKeyType,
+  onSubmitEditing,
+  inputRef,
+}) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <View>
+      <Text style={fieldStyles.label}>{label}</Text>
+      <View style={[fieldStyles.container, focused && fieldStyles.focused]}>
+        <TextInput
+          ref={inputRef}
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor="#52524E"
+          secureTextEntry={secureTextEntry}
+          keyboardType={keyboardType || "default"}
+          autoCapitalize={autoCapitalize ?? "words"}
+          returnKeyType={returnKeyType || "next"}
+          onSubmitEditing={onSubmitEditing}
+          blurOnSubmit={!onSubmitEditing}
+          style={fieldStyles.input}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+        />
+      </View>
+    </View>
+  );
+}
+
+const fieldStyles = StyleSheet.create({
+  label: {
+    color: "#9CA3AF",
+    fontSize: FONT_SIZES.xs,
+    fontWeight: "600",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    marginBottom: SPACING.xs,
+  },
   container: {
     backgroundColor: COLORS.stone,
     borderRadius: RADIUS.lg,
@@ -30,79 +75,44 @@ const INPUT_CLASSES = {
     paddingVertical: SPACING.md,
     marginBottom: SPACING.md,
   },
-  input: {
-    color: COLORS.white,
-    fontSize: FONT_SIZES.base,
-  },
-  label: {
-    color: "#9CA3AF",
-    fontSize: FONT_SIZES.xs,
-    fontWeight: "600",
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-    marginBottom: SPACING.xs,
-  },
-  focused: {
-    borderColor: COLORS.red,
-  },
-};
+  focused: { borderColor: COLORS.red },
+  input: { color: COLORS.white, fontSize: FONT_SIZES.base, minHeight: 24 },
+});
 
-function FormField({ label, value, onChangeText, placeholder, secureTextEntry, keyboardType, autoCapitalize }) {
-  const [focused, setFocused] = useState(false);
-  return (
-    <View>
-      <Text style={INPUT_CLASSES.label}>{label}</Text>
-      <View style={[INPUT_CLASSES.container, focused && INPUT_CLASSES.focused]}>
-        <TextInput
-          value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
-          placeholderTextColor="#52524E"
-          secureTextEntry={secureTextEntry}
-          keyboardType={keyboardType || "default"}
-          autoCapitalize={autoCapitalize ?? "words"}
-          style={INPUT_CLASSES.input}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-        />
-      </View>
-    </View>
-  );
-}
-
+// ─── Screen ───────────────────────────────────────────────────────────────────
 export default function RegisterScreen() {
   const { role } = useLocalSearchParams();
   const { signUp } = useAuth();
-  const isStaff = role === ROLES.STAFF;
+  const insets = useSafeAreaInsets();
+  const isStaff = role === ROLES.STAFF || role === "staff";
 
   const [form, setForm] = useState({
     name: "",
     phoneNumber: "",
     password: "",
     confirmPassword: "",
-    // Staff only
     locationToken: "",
-    // Rider only
     vehicleType: "",
     vehiclePlate: "",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Refs for sequential field focus
+  const phoneRef = useRef(null);
+  const passRef = useRef(null);
+  const confirmRef = useRef(null);
+  const tokenRef = useRef(null);
+  const plateRef = useRef(null);
+
   const set = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
 
   const validate = () => {
     if (!form.name.trim()) return "Please enter your full name.";
     if (!form.phoneNumber.trim()) return "Please enter your phone number.";
-
-    // Strip out any spaces, dashes, or special characters to look at raw digits
-    const rawDigits = form.phoneNumber.replace(/\D/g, "");
-
-    // Ghanaian numbers are typically 9 digits (without the 0) or 10 digits (with the 0)
-    if (rawDigits.length < 9 || rawDigits.length > 13) {
-      return "Enter a valid phone number (e.g., 023#######).";
-    }
-
+    const digits = form.phoneNumber.replace(/\D/g, "");
+    if (digits.length < 9 || digits.length > 13)
+      return "Enter a valid phone number (e.g. 023#######).";
     if (form.password.length < 6) return "Password must be at least 6 characters.";
     if (form.password !== form.confirmPassword) return "Passwords do not match.";
     if (isStaff && !form.locationToken.trim())
@@ -118,8 +128,9 @@ export default function RegisterScreen() {
     setError("");
     setLoading(true);
 
-    // Dynamic capitalization helper to match your backend model enum strings
-    const formattedRole = role ? role.charAt(0).toUpperCase() + role.slice(1).toLowerCase() : "Staff";
+    const formattedRole = role
+      ? role.charAt(0).toUpperCase() + role.slice(1).toLowerCase()
+      : "Staff";
 
     const payload = {
       role: formattedRole,
@@ -136,7 +147,6 @@ export default function RegisterScreen() {
 
     try {
       await signUp(payload);
-      // AuthContext routes to workspace on success
     } catch (e) {
       setError(e.message || "Registration failed. Please try again.");
     } finally {
@@ -144,15 +154,22 @@ export default function RegisterScreen() {
     }
   };
 
+  const keyboardOffset = Platform.OS === "ios" ? insets.top + 10 : 0;
+
   return (
-    <SafeView variant="dark">
+    <SafeView variant="dark" edges={["top", "left", "right"]}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={keyboardOffset}
         style={{ flex: 1 }}
       >
         <ScrollView
-          contentContainerStyle={styles.scroll}
+          contentContainerStyle={[
+            styles.scroll,
+            { paddingBottom: insets.bottom + SPACING["4xl"] },
+          ]}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
           showsVerticalScrollIndicator={false}
         >
           {/* Back */}
@@ -175,25 +192,63 @@ export default function RegisterScreen() {
             </Text>
           </View>
 
-          {/* Common fields */}
-          <FormField label="Full Name" value={form.name} onChangeText={set("name")} placeholder="e.g. Kwame Mensah" />
-          <FormField label="Phone Number" value={form.phoneNumber} onChangeText={set("phoneNumber")} placeholder="023#######" autoCapitalize="none" keyboardType="phone-pad" />
-          <FormField label="Password" value={form.password} onChangeText={set("password")} placeholder="Min. 6 characters" secureTextEntry autoCapitalize="none" />
-          <FormField label="Confirm Password" value={form.confirmPassword} onChangeText={set("confirmPassword")} placeholder="Repeat password" secureTextEntry autoCapitalize="none" />
+          {/* Common fields — each field focuses the next on submit */}
+          <FormField
+            label="Full Name"
+            value={form.name}
+            onChangeText={set("name")}
+            placeholder="e.g. Kwame Mensah"
+            onSubmitEditing={() => phoneRef.current?.focus()}
+          />
+          <FormField
+            inputRef={phoneRef}
+            label="Phone Number"
+            value={form.phoneNumber}
+            onChangeText={set("phoneNumber")}
+            placeholder="023#######"
+            autoCapitalize="none"
+            keyboardType="phone-pad"
+            onSubmitEditing={() => passRef.current?.focus()}
+          />
+          <FormField
+            inputRef={passRef}
+            label="Password"
+            value={form.password}
+            onChangeText={set("password")}
+            placeholder="Min. 6 characters"
+            secureTextEntry
+            autoCapitalize="none"
+            onSubmitEditing={() => confirmRef.current?.focus()}
+          />
+          <FormField
+            inputRef={confirmRef}
+            label="Confirm Password"
+            value={form.confirmPassword}
+            onChangeText={set("confirmPassword")}
+            placeholder="Repeat password"
+            secureTextEntry
+            autoCapitalize="none"
+            onSubmitEditing={() =>
+              isStaff ? tokenRef.current?.focus() : null
+            }
+            returnKeyType={isStaff ? "next" : "done"}
+          />
 
-          {/* Role-specific fields */}
+          {/* Role-specific */}
           {isStaff ? (
             <FormField
+              inputRef={tokenRef}
               label="Location Token"
               value={form.locationToken}
               onChangeText={set("locationToken")}
               placeholder="Provided by your manager"
               autoCapitalize="none"
+              returnKeyType="done"
+              onSubmitEditing={handleSubmit}
             />
           ) : (
             <>
-              {/* Vehicle type picker */}
-              <Text style={INPUT_CLASSES.label}>Vehicle Type</Text>
+              <Text style={fieldStyles.label}>Vehicle Type</Text>
               <View style={styles.vehicleGrid}>
                 {VEHICLE_TYPES.map((v) => (
                   <TouchableOpacity
@@ -213,27 +268,27 @@ export default function RegisterScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
-
               <FormField
+                inputRef={plateRef}
                 label="Plate / ID (optional)"
                 value={form.vehiclePlate}
                 onChangeText={set("vehiclePlate")}
                 placeholder="e.g. GR-1234-22"
                 autoCapitalize="characters"
+                returnKeyType="done"
+                onSubmitEditing={handleSubmit}
               />
             </>
           )}
 
-          {/* Error */}
           {!!error && (
             <View style={styles.errorBox}>
               <Text style={styles.errorText}>{error}</Text>
             </View>
           )}
 
-          {/* Submit */}
           <Button
-            label={loading ? "" : "Create Account"}
+            label="Create Account"
             onPress={handleSubmit}
             loading={loading}
             disabled={loading}
@@ -241,13 +296,13 @@ export default function RegisterScreen() {
             style={{ marginTop: SPACING.md }}
           />
 
-          {/* Login link */}
           <TouchableOpacity
             onPress={() => router.replace("/(auth)/login")}
             style={styles.loginLink}
           >
             <Text style={styles.loginLinkText}>
-              Already have an account? <Text style={styles.loginLinkBold}>Sign in</Text>
+              Already have an account?{" "}
+              <Text style={styles.loginLinkBold}>Sign in</Text>
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -260,7 +315,6 @@ const styles = StyleSheet.create({
   scroll: {
     flexGrow: 1,
     paddingHorizontal: SPACING["2xl"],
-    paddingBottom: SPACING["4xl"],
   },
   back: { paddingTop: SPACING.xl, marginBottom: SPACING.lg },
   backText: { color: "#9CA3AF", fontSize: FONT_SIZES.base, fontWeight: "600" },
@@ -276,6 +330,7 @@ const styles = StyleSheet.create({
   roleTagRed: { backgroundColor: "#FEE2E2" },
   roleTagBlue: { backgroundColor: "#DBEAFE" },
   roleTagText: { fontWeight: "700", fontSize: FONT_SIZES.sm, color: COLORS.dark },
+
   title: {
     color: COLORS.white,
     fontSize: FONT_SIZES["2xl"],
@@ -299,10 +354,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     backgroundColor: COLORS.stone,
   },
-  vehicleChipActive: {
-    borderColor: COLORS.red,
-    backgroundColor: "#3F1212",
-  },
+  vehicleChipActive: { borderColor: COLORS.red, backgroundColor: "#3F1212" },
   vehicleChipText: { color: "#9CA3AF", fontSize: FONT_SIZES.sm, fontWeight: "600" },
   vehicleChipTextActive: { color: COLORS.red },
 

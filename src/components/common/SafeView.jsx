@@ -1,49 +1,44 @@
-import React from "react";
-import { View, StyleSheet, StatusBar } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { COLORS } from "@constants/theme";
+import { StatusBar, StyleSheet, View } from "react-native";
+import { COLORS } from "../../constants/theme";
 
 /**
  * SafeView
- * ─────────────────────────────────────────────────────────────────────────────
- * High-fidelity edge-to-edge wrapper that maps physical insets (notch, punch
- * hole, home indicator, nav bar) into structural padding — so no content ever
- * clips into OS chrome.
+ * Edge-to-edge wrapper using physical insets so nothing clips into OS chrome.
  *
- * Props:
- *   variant   "dark" | "light" | "transparent"
- *             Controls the status-bar tint and background fill.
- *   edges     Subset of ["top","bottom","left","right"] to apply. Default: all.
- *   style     Additional styles merged onto the outer container.
- *   children
+ * variant   "dark" | "light" | "white" | "transparent"
+ * edges     Array of sides to pad. Default: all four.
+ * style     Extra styles on the container.
  */
 export default function SafeView({
   children,
-  variant  = "light",
-  edges    = ["top", "bottom", "left", "right"],
+  variant = "light",
+  edges = ["top", "bottom", "left", "right"],
   style,
 }) {
   const insets = useSafeAreaInsets();
 
   const backgroundColor = {
-    dark:        COLORS.dark,
-    light:       COLORS.cream,
+    dark: COLORS.dark,
+    light: COLORS.cream,
+    white: COLORS.white,
     transparent: "transparent",
-    white:       COLORS.white,
   }[variant] ?? COLORS.cream;
 
   const statusBarStyle =
     variant === "dark" ? "light-content" : "dark-content";
 
-  const padding = {
-    paddingTop:    edges.includes("top")    ? insets.top    : 0,
-    paddingBottom: edges.includes("bottom") ? insets.bottom : 0,
-    paddingLeft:   edges.includes("left")   ? insets.left   : 0,
-    paddingRight:  edges.includes("right")  ? insets.right  : 0,
+  // Only apply inset padding to the requested edges
+  const insetPadding = {
+    paddingTop: edges.includes("top") ? insets.top : 0,
+    // Bottom inset handled via minPaddingBottom so tab bars can override it
+    paddingBottom: edges.includes("bottom") ? Math.max(insets.bottom, 0) : 0,
+    paddingLeft: edges.includes("left") ? insets.left : 0,
+    paddingRight: edges.includes("right") ? insets.right : 0,
   };
 
   return (
-    <View style={[styles.root, { backgroundColor }, padding, style]}>
+    <View style={[styles.root, { backgroundColor }, insetPadding, style]}>
       <StatusBar
         barStyle={statusBarStyle}
         backgroundColor="transparent"
@@ -55,7 +50,5 @@ export default function SafeView({
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
+  root: { flex: 1 },
 });
