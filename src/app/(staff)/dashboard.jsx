@@ -56,12 +56,12 @@ function OrderDetailModal({ order, visible, onClose, onStatusChange }) {
   const [loading, setLoading] = useState(false);
   if (!order) return null;
 
-  const transitions = STAFF_TRANSITIONS[order.status] ?? [];
+  const transitions = STAFF_TRANSITIONS[order.statusState || order.status] ?? [];
 
   const handleUpdate = async (newStatus) => {
     setLoading(true);
     try {
-      await onStatusChange((order._id || order.id), newStatus); // 💡 Pass the mongo _id
+      await onStatusChange((order._id || order.id), newStatus);
       onClose();
     } catch (e) {
       Alert.alert("Error", e.message || "Could not update order status.");
@@ -83,37 +83,44 @@ function OrderDetailModal({ order, visible, onClose, onStatusChange }) {
           <View style={styles.modalHandle} />
 
           <Text style={styles.modalTitle}>
-            Order #{String(order._id || order.id).slice(-5).toUpperCase()}
+            Order #{String(order._id || order.id).slice(-4).toUpperCase()}
           </Text>
 
           <View style={styles.modalRow}>
             <Text style={styles.modalLabel}>Customer</Text>
-            <Text style={styles.modalValue}>{order.customerName}</Text>
+            <Text style={styles.modalValue}>{order.customerName || "Web Customer"}</Text>
           </View>
+          
           <View style={styles.modalRow}>
-            <Text style={styles.modalLabel}>Address</Text>
-            <Text style={styles.modalValue}>{order.deliveryAddress}</Text>
-          </View>
-          <View style={styles.modalRow}>
-            <Text style={styles.modalLabel}>Status</Text>
-            <StatusBadge status={order.statusState} /> {/* 💡 Changed status to statusState */}
+            <Text style={styles.modalLabel}>Details/Address</Text>
+            <Text style={styles.modalValue}>
+              {order.deliveryAddress || (order.tableNumber ? `Table ${order.tableNumber}` : "In-Kitchen")}
+            </Text>
           </View>
 
-          {/* Items */}
-          <Text style={[styles.modalLabel, { marginTop: SPACING.lg }]}>Items</Text>
+          <View style={styles.modalRow}>
+            <Text style={styles.modalLabel}>Status</Text>
+            <StatusBadge status={order.statusState || order.status} />
+          </View>
+
+          {/* Items Header */}
+          <Text style={[styles.modalLabel, { marginTop: SPACING.lg, marginBottom: SPACING.xs }]}>
+            Items
+          </Text>
+
+          {/* Items Mapping Matrix */}
           {(order.items || []).map((item, i) => (
             <View key={i} style={styles.itemRow}>
-              <Text style={styles.itemQty}>{item.quantity}×</Text>
-              {/* 💡 Backend uses foodItemName instead of name */}
+              {/* 💡 FIX 1: Pure cleanly styled single integer count layout */}
+              <Text style={styles.itemQty}>{item.quantity}</Text>
               <Text style={styles.itemName}>{item.foodItemName || item.name}</Text>
-              <Text style={styles.itemPrice}>GHS {item.price * item.quantity}</Text>
+              <Text style={styles.itemPrice}>GHS {Number(item.price * item.quantity).toFixed(2)}</Text>
             </View>
           ))}
 
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Total</Text>
-            {/* 💡 Backend uses totalAmount instead of totalPrice */}
-            <Text style={styles.totalValue}>GHS {Number(order.totalAmount).toFixed(2)}</Text>
+            <Text style={styles.totalValue}>GHS {Number(order.totalAmount || order.totalPrice || 0).toFixed(2)}</Text>
           </View>
 
           {/* Transition buttons */}
@@ -122,7 +129,7 @@ function OrderDetailModal({ order, visible, onClose, onStatusChange }) {
               {transitions.map((s) => (
                 <Button
                   key={s}
-                  label={loading ? "" : `Mark as ${ORDER_STATUS_LABELS[s]}`}
+                  label={loading ? "" : `Mark as ${ORDER_STATUS_LABELS[s] || s}`}
                   loading={loading}
                   onPress={() => handleUpdate(s)}
                   size="md"
@@ -178,14 +185,14 @@ export default function Dashboard() {
   };
 
   // Inside Dashboard component:
-const FILTERS = ["ALL", ORDER_STATUS.PENDING, ORDER_STATUS.PREPARING, ORDER_STATUS.READY_FOR_PICKUP];
-const filtered = filter === "ALL" ? orders : orders.filter((o) => o.statusState === filter);
+  const FILTERS = ["ALL", ORDER_STATUS.PENDING, ORDER_STATUS.PREPARING, ORDER_STATUS.READY_FOR_PICKUP];
+  const filtered = filter === "ALL" ? orders : orders.filter((o) => o.statusState === filter);
 
-const counts = {
-  pending:   orders.filter((o) => o.statusState === ORDER_STATUS.PENDING).length,
-  preparing: orders.filter((o) => o.statusState === ORDER_STATUS.PREPARING).length,
-  ready:     orders.filter((o) => o.statusState === ORDER_STATUS.READY_FOR_PICKUP).length,
-};
+  const counts = {
+    pending: orders.filter((o) => o.statusState === ORDER_STATUS.PENDING).length,
+    preparing: orders.filter((o) => o.statusState === ORDER_STATUS.PREPARING).length,
+    ready: orders.filter((o) => o.statusState === ORDER_STATUS.READY_FOR_PICKUP).length,
+  };
 
   return (
     <SafeView variant="dark">

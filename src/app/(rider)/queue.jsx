@@ -9,12 +9,15 @@ import {
   Modal,
   Alert,
   ActivityIndicator,
+  Switch,
 } from "react-native";
 import SafeView from "../../components/common/SafeView";
 import OrderCard from "../../components/orders/OrderCard";
 import Button from "../../components/common/Button";
 import { useAuth } from "../../context/AuthContext";
 import { getAvailableDeliveries, acceptDelivery } from "../../api/orders";
+// 💡 Import your patch status api call here (assume it's named updateRiderStatus or similar)
+import { updateRiderStatus } from "../../api/orders";
 import { COLORS, FONT_SIZES, SPACING, RADIUS } from "../../constants/theme";
 
 function DeliveryDetailModal({ order, visible, onClose, onAccept, accepting }) {
@@ -43,13 +46,13 @@ function DeliveryDetailModal({ order, visible, onClose, onAccept, accepting }) {
           <View style={styles.detailCard}>
             <Text style={styles.detailLabel}>💰 Total</Text>
             <Text style={[styles.detailValue, { color: COLORS.red, fontWeight: "800" }]}>
-              GHS {Number(order.totalPrice).toFixed(2)}
+              GHS {Number(order.totalPrice || order.totalAmount).toFixed(2)}
             </Text>
           </View>
 
           <Button
             label="Accept Delivery"
-            onPress={() => onAccept(order.id)}
+            onPress={() => onAccept(order.id || order._id)}
             loading={accepting}
             size="lg"
             style={{ marginTop: SPACING["2xl"] }}
@@ -69,13 +72,23 @@ function DeliveryDetailModal({ order, visible, onClose, onAccept, accepting }) {
 
 export default function RiderQueue() {
   const { user, signOut } = useAuth();
-  const [orders,    setOrders]    = useState([]);
-  const [loading,   setLoading]   = useState(true);
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selected,  setSelected]  = useState(null);
+  const [selected, setSelected] = useState(null);
   const [accepting, setAccepting] = useState(false);
 
+  // 💡 Local state for status tracking initialized from context profile
+  const [isAvailable, setIsAvailable] = useState(user?.scheduleStatus === "Available");
+  const [togglingStatus, setTogglingStatus] = useState(false);
+
   const fetchDeliveries = useCallback(async () => {
+    if (!isAvailable) {
+      setOrders([]);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
     try {
       const data = await getAvailableDeliveries();
       setOrders(Array.isArray(data) ? data : []);
@@ -84,13 +97,29 @@ export default function RiderQueue() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [isAvailable]);
 
   useEffect(() => {
     fetchDeliveries();
     const interval = setInterval(fetchDeliveries, 20_000);
     return () => clearInterval(interval);
   }, [fetchDeliveries]);
+
+  // 💡 Toggle Rider Switch handler
+  const handleToggleAvailability = async () => {
+    const nextStatus = isAvailable ? "Offline" : "Available";
+    setTogglingStatus(true);
+    try {
+      if (updateRiderStatus) {
+        await updateRiderStatus({ scheduleStatus: nextStatus });
+      }
+      setIsAvailable(!isAvailable);
+    } catch (e) {
+      Alert.alert("Status Error", "Could not change status framework state.");
+    } finally {
+      setTogglingStatus(false);
+    }
+  };
 
   const handleAccept = async (orderId) => {
     setAccepting(true);
@@ -113,7 +142,7 @@ export default function RiderQueue() {
         <View>
           <Text style={styles.title}>Available Deliveries</Text>
           <Text style={styles.subtitle}>
-            {orders.length} order{orders.length !== 1 ? "s" : ""} near Shai Hills
+            {isAvailable ? `${orders.length} orders near Shai Hills` : "You are currently offline"}
           </Text>
         </View>
         <TouchableOpacity
@@ -127,24 +156,36 @@ export default function RiderQueue() {
         </TouchableOpacity>
       </View>
 
-      {/* Rider pill */}
-      <View style={styles.riderPill}>
-        <Text style={styles.riderPillText}>
-          🏍️  {user?.name?.split(" ")[0]}
-          {user?.vehicleType ? `  ·  ${user.vehicleType}` : ""}
+      {/* 💡 Operational Status Pill containing Switch element */}
+      <View style={[styles.riderPill, !isAvailable && styles.riderPillOffline]}>
+        <Text style={[styles.riderPillText, !isAvailable && styles.riderPillTextOffline]}>
+          {isAvailable ? `🏍️ Online: ${user?.name?.split(" ")[0]}` : "💤 Offline"}
         </Text>
-        <View style={styles.onlineDot} />
+        <Switch
+          trackColor={{ false: "#4B5563", true: COLORS.delivered }}
+          thumbColor={COLORS.white}
+          onValueChange={handleToggleAvailability}
+          value={isAvailable}
+          disabled={togglingStatus}
+          style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
+        />
       </View>
 
-      {/* List */}
+      {/* List / Empty Fallback container */}
       {loading ? (
         <View style={styles.loading}>
           <ActivityIndicator color={COLORS.red} size="large" />
         </View>
+      ) : !isAvailable ? (
+        <View style={styles.empty}>
+          <Text style={styles.emptyIcon}>🌙</Text>
+          <Text style={styles.emptyTitle}>You're Offline</Text>
+          <Text style={styles.emptyBody}>Toggle the switch above to available to see orders.</Text>
+        </View>
       ) : (
         <FlatList
           data={orders}
-          keyExtractor={(item) => String(item.id)}
+          keyExtractor={(item) => String(item.id || item._id)}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -191,7 +232,7 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.xl,
     paddingBottom: SPACING.md,
   },
-  title:    { color: COLORS.white, fontSize: FONT_SIZES.xl, fontWeight: "800" },
+  title: { color: COLORS.white, fontSize: FONT_SIZES.xl, fontWeight: "800" },
   subtitle: { color: "#9CA3AF", fontSize: FONT_SIZES.sm, marginTop: 2 },
   signOutBtn: {
     paddingHorizontal: SPACING.md, paddingVertical: SPACING.xs,
@@ -202,26 +243,25 @@ const styles = StyleSheet.create({
   riderPill: {
     flexDirection: "row",
     alignItems: "center",
-    alignSelf: "flex-start",
+    justifyContent: "space-between",
+    alignSelf: "stretch",
     marginHorizontal: SPACING["2xl"],
     marginBottom: SPACING.lg,
     backgroundColor: "#1E3A5F",
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs,
-    borderRadius: RADIUS.full,
-    gap: SPACING.sm,
+    borderRadius: RADIUS.lg,
   },
+  riderPillOffline: { backgroundColor: COLORS.border },
   riderPillText: { color: "#93C5FD", fontSize: FONT_SIZES.xs, fontWeight: "700" },
-  onlineDot: {
-    width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.delivered,
-  },
+  riderPillTextOffline: { color: "#9CA3AF" },
 
   list: { paddingHorizontal: SPACING["2xl"], paddingBottom: SPACING["3xl"] },
   loading: { flex: 1, alignItems: "center", justifyContent: "center" },
-  empty: { alignItems: "center", paddingVertical: SPACING["4xl"] },
-  emptyIcon:  { fontSize: 48, marginBottom: SPACING.lg },
+  empty: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: SPACING["4xl"] },
+  emptyIcon: { fontSize: 48, marginBottom: SPACING.lg },
   emptyTitle: { color: COLORS.white, fontSize: FONT_SIZES.lg, fontWeight: "700" },
-  emptyBody:  { color: "#6B7280", fontSize: FONT_SIZES.sm, marginTop: SPACING.xs },
+  emptyBody: { color: "#6B7280", fontSize: FONT_SIZES.sm, marginTop: SPACING.xs },
 
   // Modal
   backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "flex-end" },
