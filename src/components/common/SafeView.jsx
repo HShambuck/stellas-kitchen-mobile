@@ -1,7 +1,7 @@
 import React from "react";
 import { View, StyleSheet, StatusBar } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { COLORS } from "../../constants/theme";
+import { COLORS } from "@constants/theme";
 
 /**
  * SafeView

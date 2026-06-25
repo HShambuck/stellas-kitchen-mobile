@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import SafeView from "../../components/common/SafeView";
-import { COLORS, FONT_SIZES, SPACING, RADIUS, BRAND, ROLES } from "../../constants/theme";
+import { COLORS, FONT_SIZES, SPACING, RADIUS, BRAND, ROLES } from "@constants/theme";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 

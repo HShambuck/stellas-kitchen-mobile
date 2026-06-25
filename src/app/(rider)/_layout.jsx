@@ -1,6 +1,6 @@
 import { Tabs } from "expo-router";
 import { View, Text, StyleSheet } from "react-native";
-import { COLORS, FONT_SIZES, SPACING } from "../../constants/theme";
+import { COLORS, FONT_SIZES, SPACING } from "@constants/theme";
 
 function TabIcon({ focused, emoji, label }) {
   return (

@@ -8,7 +8,7 @@ import React, {
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { login as apiLogin, register as apiRegister, getProfile } from "../api/auth";
-import { ROLES } from "../constants/theme";
+import { ROLES } from "@constants/theme";
 
 // ─── Secure Storage Keys ──────────────────────────────────────────────────────
 const KEYS = {

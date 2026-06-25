@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { COLORS, FONT_SIZES, SPACING, RADIUS } from "../../constants/theme";
-import { ORDER_STATUS, ORDER_STATUS_LABELS } from "../../constants/theme";
+import { COLORS, FONT_SIZES, SPACING, RADIUS } from "@constants/theme";
+import { ORDER_STATUS, ORDER_STATUS_LABELS } from "@constants/theme";
 
 const STATUS_STYLE = {
   [ORDER_STATUS.PENDING]: {

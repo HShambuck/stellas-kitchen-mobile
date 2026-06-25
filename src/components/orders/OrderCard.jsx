@@ -5,7 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from "react-native";
-import { COLORS, FONT_SIZES, SPACING, RADIUS } from "../../constants/theme";
+import { COLORS, FONT_SIZES, SPACING, RADIUS } from "@constants/theme";
 import StatusBadge from "./StatusBadge";
 
 /**
