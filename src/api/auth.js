@@ -3,14 +3,12 @@ import client from "./client";
 // ─── Register ─────────────────────────────────────────────────────────────────
 /**
  * Register a new staff or rider account.
- *
- * Staff payload adds:   { locationToken: string }
- * Rider payload adds:   { vehicleType: string, vehiclePlate?: string }
+ * Automatically handles routing to /staff/register or /rider/register.
  *
  * @param {Object} payload
  * @param {"staff"|"rider"} payload.role
  * @param {string} payload.name
- * @param {string} payload.email
+ * @param {string} payload.phoneNumber
  * @param {string} payload.password
  * @param {string} [payload.locationToken]   — staff only
  * @param {string} [payload.vehicleType]     — rider only
@@ -18,21 +16,30 @@ import client from "./client";
  * @returns {Promise<{ user: Object, token: string }>}
  */
 export async function register(payload) {
-  const res = await client.post("/api/auth/register", payload);
+  // Check the role parameter to route dynamically
+  const userType = payload.role?.toLowerCase() === "rider" ? "rider" : "staff";
+  
+  const res = await client.post(`/api/auth/${userType}/register`, payload);
   return res.data;
 }
 
 // ─── Login ────────────────────────────────────────────────────────────────────
 /**
- * Authenticate with email + password.
- * Server returns JWT plus identity flags (role, name, id).
+ * Authenticate with phone number + password for both roles.
  *
- * @param {string} email
+ * @param {string} phoneNumber
  * @param {string} password
+ * @param {"staff"|"rider"} role - Explicitly passed from your UI screen state selection
  * @returns {Promise<{ user: Object, token: string }>}
  */
-export async function login(email, password) {
-  const res = await client.post("/api/auth/login", { email, password });
+export async function login(phoneNumber, password, role = "staff") {
+  // Determine endpoint path prefix based on user selection card
+  const userType = role?.toLowerCase() === "rider" ? "rider" : "staff";
+
+  // Both roles now use a standard unified phone number credential layout
+  const credentials = { phoneNumber, password };
+
+  const res = await client.post(`/api/auth/${userType}/login`, credentials);
   return res.data;
 }
 

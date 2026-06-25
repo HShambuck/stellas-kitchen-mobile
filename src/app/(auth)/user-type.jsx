@@ -235,7 +235,15 @@ export default function UserTypeScreen() {
 
         {/* ── Already have an account ─────────────────────────────── */}
         <TouchableOpacity
-          onPress={() => router.push("/(auth)/login")}
+          onPress={() => {
+            // 💡 If they have a card selected, forward that specific role; 
+            // otherwise, just navigate to login cleanly
+            if (selected) {
+              router.push({ pathname: "/(auth)/login", params: { role: selected } });
+            } else {
+              router.push("/(auth)/login");
+            }
+          }}
           style={styles.loginLink}
         >
           <Text style={styles.loginLinkText}>

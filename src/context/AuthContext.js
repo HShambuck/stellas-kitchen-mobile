@@ -1,14 +1,14 @@
-import React, {
+import { ROLES } from "@constants/theme";
+import { router } from "expo-router";
+import * as SecureStore from "expo-secure-store";
+import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useReducer,
-  useCallback,
 } from "react";
-import { router } from "expo-router";
-import * as SecureStore from "expo-secure-store";
-import { login as apiLogin, register as apiRegister, getProfile } from "../api/auth";
-import { ROLES } from "@constants/theme";
+import { login as apiLogin, register as apiRegister } from "../api/auth";
 
 // ─── Secure Storage Keys ──────────────────────────────────────────────────────
 const KEYS = {
@@ -18,7 +18,7 @@ const KEYS = {
 
 // ─── State Shape ──────────────────────────────────────────────────────────────
 const INITIAL_STATE = {
-  user:        null,    // { id, name, email, role, vehicleType?, locationToken? }
+  user:        null,    // { id, name, phoneNumber, role, vehicleType?, locationToken? }
   token:       null,
   isLoading:   true,    // true while we check SecureStore on cold start
   isSignedIn:  false,
@@ -94,20 +94,29 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (state.isLoading) return;
 
+    // 💡 Add this protection block: If there is an active error from a failed 
+    // login or registration attempt, do not forcefully kick the user out of their current screen!
+    if (state.error) return; 
+
     if (!state.isSignedIn) {
       router.replace("/(auth)/user-type");
       return;
     }
 
-    if (state.user?.role === ROLES.STAFF) {
+    // Convert the role string safely to lowercase before running validation comparisons
+    const currentRole = state.user?.role?.toLowerCase();
+
+    // Now matching against 'staff' and 'rider' constants will succeed flawlessly
+if (currentRole === "staff" || currentRole === ROLES.STAFF?.toLowerCase()) {
       router.replace("/(staff)/dashboard");
-    } else if (state.user?.role === ROLES.RIDER) {
+    } else if (currentRole === "rider" || currentRole === ROLES.RIDER?.toLowerCase()) {
       router.replace("/(rider)/queue");
     } else {
-      // Unknown role — send back to auth
+      // Catch-all safety loop
+      console.log("Routing failed. Logged role payload string was:", state.user?.role);
       router.replace("/(auth)/login");
     }
-  }, [state.isLoading, state.isSignedIn, state.user?.role]);
+  }, [state.isLoading, state.isSignedIn, state.user?.role, state.error]); 
 
   // ── Persist helpers ───────────────────────────────────────────────────────
   const persistSession = async (token, user) => {
@@ -124,27 +133,17 @@ export function AuthProvider({ children }) {
     ]);
   };
 
-  // ── Login ─────────────────────────────────────────────────────────────────
-  const signIn = useCallback(async (email, password) => {
-    dispatch({ type: "SET_LOADING", isLoading: true });
-    dispatch({ type: "CLEAR_ERROR" });
-    try {
-      const { user, token } = await apiLogin(email, password);
-      await persistSession(token, user);
-      dispatch({ type: "SIGN_IN", user, token });
-      // Routing is handled by the useEffect above
-    } catch (err) {
-      dispatch({ type: "SET_ERROR", error: err.message });
-      throw err; // re-throw so the form can catch it too
-    }
-  }, []);
-
   // ── Register ──────────────────────────────────────────────────────────────
   const signUp = useCallback(async (payload) => {
     dispatch({ type: "SET_LOADING", isLoading: true });
     dispatch({ type: "CLEAR_ERROR" });
     try {
-      const { user, token } = await apiRegister(payload);
+      // 💡 Change this line: The backend returns the user object directly, 
+      // with the token nested inside it.
+      const responseData = await apiRegister(payload);
+      const token = responseData.token;
+      const user = responseData; // The whole object contains _id, name, role, etc.
+
       await persistSession(token, user);
       dispatch({ type: "SIGN_IN", user, token });
     } catch (err) {
@@ -153,6 +152,24 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  // ── Login ─────────────────────────────────────────────────────────────────
+  const signIn = useCallback(async (phoneNumber, password, role) => {
+    dispatch({ type: "SET_LOADING", isLoading: true });
+    dispatch({ type: "CLEAR_ERROR" });
+    try {
+      // 💡 Do the exact same thing for login to stay unified
+      const responseData = await apiLogin(phoneNumber, password, role);
+      const token = responseData.token;
+      const user = responseData;
+
+      await persistSession(token, user);
+      dispatch({ type: "SIGN_IN", user, token });
+    } catch (err) {
+      dispatch({ type: "SET_ERROR", error: err.message });
+      throw err; 
+    }
+  }, []);
+  
   // ── Sign Out ──────────────────────────────────────────────────────────────
   const signOut = useCallback(async () => {
     await clearSession();

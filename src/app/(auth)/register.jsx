@@ -1,44 +1,46 @@
-import React, { useState } from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import { useState } from "react";
 import {
-  View,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
+  View
 } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
-import SafeView from "../../components/common/SafeView";
 import Button from "../../components/common/Button";
-import { useAuth } from "../../context/AuthContext";
+import SafeView from "../../components/common/SafeView";
 import {
-  COLORS, FONT_SIZES, SPACING, RADIUS, ROLES, VEHICLE_TYPES,
+  COLORS, FONT_SIZES,
+  RADIUS, ROLES,
+  SPACING,
+  VEHICLE_TYPES,
 } from "../../constants/theme";
+import { useAuth } from "../../context/AuthContext";
 
 const INPUT_CLASSES = {
   container: {
     backgroundColor: COLORS.stone,
-    borderRadius:    RADIUS.lg,
-    borderWidth:     1.5,
-    borderColor:     COLORS.border,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
     paddingHorizontal: SPACING.lg,
-    paddingVertical:   SPACING.md,
-    marginBottom:    SPACING.md,
+    paddingVertical: SPACING.md,
+    marginBottom: SPACING.md,
   },
   input: {
-    color:    COLORS.white,
+    color: COLORS.white,
     fontSize: FONT_SIZES.base,
   },
   label: {
-    color:        "#9CA3AF",
-    fontSize:     FONT_SIZES.xs,
-    fontWeight:   "600",
+    color: "#9CA3AF",
+    fontSize: FONT_SIZES.xs,
+    fontWeight: "600",
     letterSpacing: 0.8,
     textTransform: "uppercase",
-    marginBottom:  SPACING.xs,
+    marginBottom: SPACING.xs,
   },
   focused: {
     borderColor: COLORS.red,
@@ -60,8 +62,8 @@ function FormField({ label, value, onChangeText, placeholder, secureTextEntry, k
           keyboardType={keyboardType || "default"}
           autoCapitalize={autoCapitalize ?? "words"}
           style={INPUT_CLASSES.input}
-          onFocus={()  => setFocused(true)}
-          onBlur={()   => setFocused(false)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
         />
       </View>
     </View>
@@ -74,25 +76,33 @@ export default function RegisterScreen() {
   const isStaff = role === ROLES.STAFF;
 
   const [form, setForm] = useState({
-    name:           "",
-    email:          "",
-    password:       "",
+    name: "",
+    phoneNumber: "",
+    password: "",
     confirmPassword: "",
     // Staff only
-    locationToken:  "",
+    locationToken: "",
     // Rider only
-    vehicleType:    "",
-    vehiclePlate:   "",
+    vehicleType: "",
+    vehiclePlate: "",
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState("");
+  const [error, setError] = useState("");
 
   const set = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
 
   const validate = () => {
-    if (!form.name.trim())  return "Please enter your full name.";
-    if (!form.email.trim()) return "Please enter your email address.";
-    if (!/\S+@\S+\.\S+/.test(form.email)) return "Enter a valid email address.";
+    if (!form.name.trim()) return "Please enter your full name.";
+    if (!form.phoneNumber.trim()) return "Please enter your phone number.";
+
+    // Strip out any spaces, dashes, or special characters to look at raw digits
+    const rawDigits = form.phoneNumber.replace(/\D/g, "");
+
+    // Ghanaian numbers are typically 9 digits (without the 0) or 10 digits (with the 0)
+    if (rawDigits.length < 9 || rawDigits.length > 13) {
+      return "Enter a valid phone number (e.g., 023#######).";
+    }
+
     if (form.password.length < 6) return "Password must be at least 6 characters.";
     if (form.password !== form.confirmPassword) return "Passwords do not match.";
     if (isStaff && !form.locationToken.trim())
@@ -108,17 +118,20 @@ export default function RegisterScreen() {
     setError("");
     setLoading(true);
 
+    // Dynamic capitalization helper to match your backend model enum strings
+    const formattedRole = role ? role.charAt(0).toUpperCase() + role.slice(1).toLowerCase() : "Staff";
+
     const payload = {
-      role,
-      name:     form.name.trim(),
-      email:    form.email.trim().toLowerCase(),
+      role: formattedRole,
+      name: form.name.trim(),
+      phoneNumber: form.phoneNumber.trim(),
       password: form.password,
       ...(isStaff
         ? { locationToken: form.locationToken.trim() }
         : {
-            vehicleType:  form.vehicleType,
-            vehiclePlate: form.vehiclePlate.trim(),
-          }),
+          vehicleType: form.vehicleType,
+          vehicleRegistration: form.vehiclePlate.trim(),
+        }),
     };
 
     try {
@@ -163,9 +176,9 @@ export default function RegisterScreen() {
           </View>
 
           {/* Common fields */}
-          <FormField label="Full Name"     value={form.name}     onChangeText={set("name")}  placeholder="e.g. Kwame Mensah" />
-          <FormField label="Email Address" value={form.email}    onChangeText={set("email")} placeholder="you@example.com" autoCapitalize="none" keyboardType="email-address" />
-          <FormField label="Password"      value={form.password} onChangeText={set("password")} placeholder="Min. 6 characters" secureTextEntry autoCapitalize="none" />
+          <FormField label="Full Name" value={form.name} onChangeText={set("name")} placeholder="e.g. Kwame Mensah" />
+          <FormField label="Phone Number" value={form.phoneNumber} onChangeText={set("phoneNumber")} placeholder="023#######" autoCapitalize="none" keyboardType="phone-pad" />
+          <FormField label="Password" value={form.password} onChangeText={set("password")} placeholder="Min. 6 characters" secureTextEntry autoCapitalize="none" />
           <FormField label="Confirm Password" value={form.confirmPassword} onChangeText={set("confirmPassword")} placeholder="Repeat password" secureTextEntry autoCapitalize="none" />
 
           {/* Role-specific fields */}
@@ -247,25 +260,25 @@ const styles = StyleSheet.create({
   scroll: {
     flexGrow: 1,
     paddingHorizontal: SPACING["2xl"],
-    paddingBottom:     SPACING["4xl"],
+    paddingBottom: SPACING["4xl"],
   },
   back: { paddingTop: SPACING.xl, marginBottom: SPACING.lg },
   backText: { color: "#9CA3AF", fontSize: FONT_SIZES.base, fontWeight: "600" },
 
   header: { marginBottom: SPACING["2xl"] },
   roleTag: {
-    alignSelf:         "flex-start",
-    paddingVertical:   SPACING.xs,
+    alignSelf: "flex-start",
+    paddingVertical: SPACING.xs,
     paddingHorizontal: SPACING.md,
-    borderRadius:      RADIUS.full,
-    marginBottom:      SPACING.lg,
+    borderRadius: RADIUS.full,
+    marginBottom: SPACING.lg,
   },
-  roleTagRed:  { backgroundColor: "#FEE2E2" },
+  roleTagRed: { backgroundColor: "#FEE2E2" },
   roleTagBlue: { backgroundColor: "#DBEAFE" },
   roleTagText: { fontWeight: "700", fontSize: FONT_SIZES.sm, color: COLORS.dark },
   title: {
-    color:      COLORS.white,
-    fontSize:   FONT_SIZES["2xl"],
+    color: COLORS.white,
+    fontSize: FONT_SIZES["2xl"],
     fontWeight: "800",
     marginBottom: SPACING.sm,
   },
@@ -273,33 +286,33 @@ const styles = StyleSheet.create({
 
   vehicleGrid: {
     flexDirection: "row",
-    flexWrap:      "wrap",
-    gap:           SPACING.sm,
-    marginBottom:  SPACING.lg,
-    marginTop:     SPACING.xs,
+    flexWrap: "wrap",
+    gap: SPACING.sm,
+    marginBottom: SPACING.lg,
+    marginTop: SPACING.xs,
   },
   vehicleChip: {
-    paddingVertical:   SPACING.sm,
+    paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.lg,
-    borderRadius:      RADIUS.full,
-    borderWidth:       1.5,
-    borderColor:       COLORS.border,
-    backgroundColor:   COLORS.stone,
+    borderRadius: RADIUS.full,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.stone,
   },
   vehicleChipActive: {
-    borderColor:     COLORS.red,
+    borderColor: COLORS.red,
     backgroundColor: "#3F1212",
   },
-  vehicleChipText:       { color: "#9CA3AF", fontSize: FONT_SIZES.sm, fontWeight: "600" },
+  vehicleChipText: { color: "#9CA3AF", fontSize: FONT_SIZES.sm, fontWeight: "600" },
   vehicleChipTextActive: { color: COLORS.red },
 
   errorBox: {
     backgroundColor: "#3F1212",
-    borderRadius:    RADIUS.lg,
-    padding:         SPACING.lg,
-    marginBottom:    SPACING.md,
-    borderWidth:     1,
-    borderColor:     "#7F1D1D",
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: "#7F1D1D",
   },
   errorText: { color: "#FCA5A5", fontSize: FONT_SIZES.sm, lineHeight: 20 },
 

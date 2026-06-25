@@ -1,24 +1,26 @@
-import React, { useState, useRef, useEffect } from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import { useEffect, useRef, useState } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
+  Animated,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Animated,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { router } from "expo-router";
-import SafeView from "../../components/common/SafeView";
 import Button from "../../components/common/Button";
+import SafeView from "../../components/common/SafeView";
+import { BRAND, COLORS, FONT_SIZES, RADIUS, SPACING } from "../../constants/theme";
 import { useAuth } from "../../context/AuthContext";
-import { COLORS, FONT_SIZES, SPACING, RADIUS, BRAND } from "../../constants/theme";
 
 export default function LoginScreen() {
   const { signIn, error, clearError } = useAuth();
-  const [email,    setEmail]    = useState("");
+  const { role } = useLocalSearchParams();
+
+  const [phoneNumber,    setPhoneNumber]    = useState("");
   const [password, setPassword] = useState("");
   const [loading,  setLoading]  = useState(false);
   const [focused,  setFocused]  = useState(null);
@@ -33,13 +35,18 @@ export default function LoginScreen() {
   }, []);
 
   const handleLogin = async () => {
-    if (!email.trim() || !password) return;
+    if (!phoneNumber.trim() || !password) return;
     clearError();
     setLoading(true);
     try {
-      await signIn(email.trim().toLowerCase(), password);
+      // 💡 Clean up casing validation strings gently
+      const cleanRole = (role || "staff").toLowerCase().trim();
+      const formattedRole = cleanRole === "rider" ? "Rider" : "Staff";
+
+      // 💡 REMOVED .toLowerCase() from the phone number parameter string!
+      await signIn(phoneNumber.trim(), password, formattedRole);
     } catch {
-      // error is in AuthContext state
+      // error handled by global context
     } finally {
       setLoading(false);
     }
@@ -83,19 +90,19 @@ export default function LoginScreen() {
 
           {/* Form card */}
           <View style={styles.card}>
-            {/* Email */}
-            <Text style={styles.fieldLabel}>Email Address</Text>
-            <View style={inputStyle("email")}>
+            {/* phoneNumber */}
+            <Text style={styles.fieldLabel}>Phone Number</Text>
+            <View style={inputStyle("phoneNumber")}>
               <TextInput
-                value={email}
-                onChangeText={setEmail}
-                placeholder="you@example.com"
+                value={phoneNumber}
+                onChangeText={setPhoneNumber}
+                placeholder="023#######"
                 placeholderTextColor="#52524E"
-                keyboardType="email-address"
+                keyboardType="phone-pad"
                 autoCapitalize="none"
                 autoCorrect={false}
                 style={styles.input}
-                onFocus={() => setFocused("email")}
+                onFocus={() => setFocused("phoneNumber")}
                 onBlur={()  => setFocused(null)}
               />
             </View>
@@ -129,7 +136,7 @@ export default function LoginScreen() {
               label="Sign In"
               onPress={handleLogin}
               loading={loading}
-              disabled={loading || !email || !password}
+              disabled={loading || !phoneNumber || !password}
               size="lg"
               style={{ marginTop: SPACING.sm }}
             />

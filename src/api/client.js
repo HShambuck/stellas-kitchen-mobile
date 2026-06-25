@@ -5,7 +5,7 @@ import * as SecureStore from "expo-secure-store";
 // Development: your local machine's LAN IP (not localhost — device can't reach it)
 // Production:  your Railway backend URL
 const BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || "http://192.168.1.100:5000";
+  process.env.EXPO_PUBLIC_API_URL || "https://stellas-kitchen-api-production.up.railway.app";
 
 // ─── Axios Instance ───────────────────────────────────────────────────────────
 const client = axios.create({
