@@ -15,15 +15,17 @@ export async function getPendingOrders() {
 }
 
 /**
- * PUT /api/orders/:id/status
+ * PATCH /api/orders/:id/status
  * Moves an order through the kitchen lifecycle.
  *
- * @param {string|number} orderId
- * @param {"PREPARING"|"READY_FOR_PICKUP"|"OUT_FOR_DELIVERY"|"DELIVERED"} status
+ * @param {string} orderId
+ * @param {"Pending"|"Preparing"|"Ready for Dispatch"|"Delivered"} statusState
  * @returns {Promise<Object>} Updated order
  */
-export async function updateOrderStatus(orderId, status) {
-  const res = await client.put(`/api/orders/${orderId}/status`, { status });
+export async function updateOrderStatus(orderId, statusState) {
+  // 💡 Changed from client.put to client.patch 
+  // 💡 Changed payload key from { status } to { statusState }
+  const res = await client.patch(`/api/orders/${orderId}/status`, { statusState });
   return res.data;
 }
 
