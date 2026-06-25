@@ -9,7 +9,8 @@ import client from "./client";
  * @returns {Promise<Array>}
  */
 export async function getPendingOrders() {
-  const res = await client.get("/api/orders/pending");
+  // The backend gets everything from /api/orders and handles security filters
+  const res = await client.get("/api/orders"); 
   return res.data;
 }
 
