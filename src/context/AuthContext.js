@@ -12,17 +12,17 @@ import { login as apiLogin, register as apiRegister } from "../api/auth";
 
 // ─── Secure Storage Keys ──────────────────────────────────────────────────────
 const KEYS = {
-  TOKEN:   "auth_token",
-  USER:    "auth_user",
+  TOKEN: "auth_token",
+  USER: "auth_user",
 };
 
 // ─── State Shape ──────────────────────────────────────────────────────────────
 const INITIAL_STATE = {
-  user:        null,    // { id, name, phoneNumber, role, vehicleType?, locationToken? }
-  token:       null,
-  isLoading:   true,    // true while we check SecureStore on cold start
-  isSignedIn:  false,
-  error:       null,
+  user: null,    // { id, name, phoneNumber, role, vehicleType?, locationToken? }
+  token: null,
+  isLoading: true,    // true while we check SecureStore on cold start
+  isSignedIn: false,
+  error: null,
 };
 
 // ─── Reducer ──────────────────────────────────────────────────────────────────
@@ -31,19 +31,19 @@ function authReducer(state, action) {
     case "RESTORE_SESSION":
       return {
         ...state,
-        user:       action.user,
-        token:      action.token,
+        user: action.user,
+        token: action.token,
         isSignedIn: !!action.token,
-        isLoading:  false,
+        isLoading: false,
       };
     case "SIGN_IN":
       return {
         ...state,
-        user:       action.user,
-        token:      action.token,
+        user: action.user,
+        token: action.token,
         isSignedIn: true,
-        isLoading:  false,
-        error:      null,
+        isLoading: false,
+        error: null,
       };
     case "SIGN_OUT":
       return {
@@ -96,18 +96,20 @@ export function AuthProvider({ children }) {
 
     // 💡 Add this protection block: If there is an active error from a failed 
     // login or registration attempt, do not forcefully kick the user out of their current screen!
-    if (state.error) return; 
+    if (state.error) return;
 
     if (!state.isSignedIn) {
-      router.replace("/(auth)/login");
-      return;
-    }
+  SecureStore.getItemAsync("has_registered").then((val) => {
+    router.replace(val ? "/(auth)/login" : "/(auth)/user-type");
+  });
+  return;
+}
 
     // Convert the role string safely to lowercase before running validation comparisons
     const currentRole = state.user?.role?.toLowerCase();
 
     // Now matching against 'staff' and 'rider' constants will succeed flawlessly
-if (currentRole === "staff" || currentRole === ROLES.STAFF?.toLowerCase()) {
+    if (currentRole === "staff" || currentRole === ROLES.STAFF?.toLowerCase()) {
       router.replace("/(staff)/dashboard");
     } else if (currentRole === "rider" || currentRole === ROLES.RIDER?.toLowerCase()) {
       router.replace("/(rider)/queue");
@@ -116,7 +118,7 @@ if (currentRole === "staff" || currentRole === ROLES.STAFF?.toLowerCase()) {
       console.log("Routing failed. Logged role payload string was:", state.user?.role);
       router.replace("/(auth)/login");
     }
-  }, [state.isLoading, state.isSignedIn, state.user?.role, state.error]); 
+  }, [state.isLoading, state.isSignedIn, state.user?.role, state.error]);
 
   // ── Persist helpers ───────────────────────────────────────────────────────
   const persistSession = async (token, user) => {
@@ -166,10 +168,10 @@ if (currentRole === "staff" || currentRole === ROLES.STAFF?.toLowerCase()) {
       dispatch({ type: "SIGN_IN", user, token });
     } catch (err) {
       dispatch({ type: "SET_ERROR", error: err.message });
-      throw err; 
+      throw err;
     }
   }, []);
-  
+
   // ── Sign Out ──────────────────────────────────────────────────────────────
   const signOut = useCallback(async () => {
     await clearSession();
@@ -185,11 +187,11 @@ if (currentRole === "staff" || currentRole === ROLES.STAFF?.toLowerCase()) {
   return (
     <AuthContext.Provider
       value={{
-        user:       state.user,
-        token:      state.token,
-        isLoading:  state.isLoading,
+        user: state.user,
+        token: state.token,
+        isLoading: state.isLoading,
         isSignedIn: state.isSignedIn,
-        error:      state.error,
+        error: state.error,
         signIn,
         signUp,
         signOut,

@@ -45,10 +45,6 @@ export default function UserTypeScreen() {
   const btnAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    (async () => {
-      const hasRegistered = await SecureStore.getItemAsync("has_registered");
-      if (hasRegistered === "true") router.replace("/(auth)/login");
-    })();
     Animated.parallel([
       Animated.timing(fadeIn,  { toValue: 1, duration: 500, useNativeDriver: true }),
       Animated.timing(slideUp, { toValue: 0, duration: 500, useNativeDriver: true }),
