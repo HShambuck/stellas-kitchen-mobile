@@ -66,7 +66,7 @@ export default function StaffLayout() {
         name="settings"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} emoji="⚙️" label="Settings" theme={theme} />
+            <TabIcon focused={focused} emoji="⚙️" label="Profile" theme={theme} />
           ),
         }}
       />

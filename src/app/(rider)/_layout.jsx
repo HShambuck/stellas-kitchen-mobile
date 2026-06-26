@@ -19,7 +19,7 @@ export default function RiderLayout() {
   const insets = useSafeAreaInsets();
   const { isDark } = useTheme();
   const theme = isDark ? DARK_THEME : LIGHT_THEME;
-  const tabBarHeight = 64 + insets.bottom;
+  const tabBarHeight = 68 + insets.bottom;
 
   return (
     <Tabs
@@ -66,7 +66,7 @@ export default function RiderLayout() {
         name="settings"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} icon="⚙" label="Settings" theme={theme} />
+            <TabIcon focused={focused} icon="⚙" label="Profile" theme={theme} />
           ),
         }}
       />
@@ -75,7 +75,7 @@ export default function RiderLayout() {
 }
 
 const styles = StyleSheet.create({
-  tabIcon:  { alignItems: "center", justifyContent: "center", paddingVertical: SPACING.xs, paddingHorizontal: SPACING.lg, borderRadius: 999, minWidth: 72, gap: 2 },
+  tabIcon:  { alignItems: "center", justifyContent: "center", paddingVertical: SPACING.xs, paddingHorizontal: SPACING.sm, borderRadius: 999, minWidth: 80, gap: 2 },
   icon:     { fontSize: 20, lineHeight: 24 },
   tabLabel: { fontSize: FONT_SIZES.xs, fontWeight: "600", letterSpacing: 0.3 },
 });
