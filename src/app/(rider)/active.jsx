@@ -164,23 +164,21 @@ export default function ActiveDelivery() {
                   </Text>
 
                   {/* Phone — tappable dialer */}
-                  <TouchableOpacity
-                    onPress={() => callCustomer(activeJob.phoneNumber)}
-                    activeOpacity={0.7}
-                    style={[styles.infoRow, { borderBottomColor: theme.border }]}
-                  >
+                  <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
                     <Text style={[styles.infoLabel, { color: theme.textMuted }]}>📞 Phone</Text>
-                    <Text style={[styles.infoValue, styles.phoneLink]}>
-                      {activeJob.phoneNumber || "—"} 📱
+                    <Text style={[styles.infoValue, { color: theme.text }]}>
+                      {activeJob.phoneNumber || "—"}
                     </Text>
-                  </TouchableOpacity>
+                  </View>
 
                   {/* Address */}
                   <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
-                    <Text style={[styles.infoLabel, { color: theme.textMuted }]}>📍 Address</Text>
-                    <Text style={[styles.infoValue, { color: theme.text }]}>
-                      {activeJob.deliveryAddress || "—"}
-                    </Text>
+                    <Text style={[styles.infoLabel, { color: theme.textMuted }]}>📍 Location</Text>
+                    <TouchableOpacity onPress={() => openMaps(activeJob.deliveryAddress)}>
+                      <Text style={[styles.infoValue, styles.mapLink]}>
+                        {activeJob.deliveryAddress || "—"} 🗺️
+                      </Text>
+                    </TouchableOpacity>
                   </View>
 
                   {/* Total */}
@@ -193,10 +191,11 @@ export default function ActiveDelivery() {
 
                   <Button
                     variant="secondary"
-                    label="Open in Maps"
-                    onPress={() => openMaps(activeJob.deliveryAddress)}
+                    label="📞 Call Customer"
+                    onPress={() => callCustomer(activeJob.phoneNumber)}
                     size="sm"
-                    style={{ marginTop: SPACING.lg }}
+                    style={{ marginTop: SPACING.lg, borderColor: "#16A34A", borderWidth: 2 }}
+                    labelStyle={{ color: "#16A34A" }}
                   />
                 </View>
 
@@ -274,7 +273,7 @@ export default function ActiveDelivery() {
 }
 
 const styles = StyleSheet.create({
-  scroll: { paddingHorizontal: SPACING["2xl"], paddingBottom: SPACING["4xl"] },
+  scroll: { paddingHorizontal: SPACING["2xl"], paddingBottom: SPACING["4xl"] * 2 },
   pageTitle: { fontSize: FONT_SIZES.xl, fontWeight: "800", paddingTop: SPACING.xl, marginBottom: SPACING.xl },
   center: { alignItems: "center", paddingVertical: SPACING["4xl"] },
   emptyIcon: { fontSize: 52, marginBottom: SPACING.lg },
@@ -298,6 +297,7 @@ const styles = StyleSheet.create({
   itemPrice: { fontSize: FONT_SIZES.sm },
   deliveredBadge: { color: COLORS.delivered, fontSize: FONT_SIZES.xs, fontWeight: "700" },
   historyPrice: { color: COLORS.delivered, fontSize: FONT_SIZES.sm, fontWeight: "700", marginTop: 4 },
+  mapLink: { color: "#60A5FA", textDecorationLine: "underline", textAlign: "right", flex: 1 },
 });
 
 const stepStyles = StyleSheet.create({

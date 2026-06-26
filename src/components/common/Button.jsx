@@ -32,6 +32,7 @@ export default function Button({
   icon,
   fullWidth = true,
   style,
+  labelStyle,
 }) {
   const isDisabled = disabled || loading;
 
@@ -49,6 +50,7 @@ export default function Button({
     styles[`label_${size}`],
     styles[`labelColor_${variant}`],
     isDisabled && styles.labelDisabled,
+    labelStyle,
   ];
 
   return (
