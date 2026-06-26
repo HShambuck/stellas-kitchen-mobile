@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useFocusEffect } from "expo-router";
 import {
   ActivityIndicator, Alert, FlatList, Modal, RefreshControl,
   StyleSheet, Text, TouchableOpacity, View,
@@ -94,6 +95,12 @@ export default function RiderQueue() {
     const interval = setInterval(fetchDeliveries, 20_000);
     return () => clearInterval(interval);
   }, [fetchDeliveries]);
+
+  useFocusEffect(
+  useCallback(() => {
+    fetchDeliveries();
+  }, [fetchDeliveries])
+);
 
   const handleAccept = async (orderId) => {
     setAccepting(true);

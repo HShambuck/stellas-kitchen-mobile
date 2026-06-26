@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useFocusEffect } from "expo-router";
 import {
   ActivityIndicator, Alert, FlatList, Modal, RefreshControl,
   ScrollView, StyleSheet, Text, TouchableOpacity, View,
@@ -210,6 +211,12 @@ export default function Dashboard() {
     const interval = setInterval(fetchOrders, 30_000);
     return () => clearInterval(interval);
   }, [fetchOrders]);
+
+  useFocusEffect(
+  useCallback(() => {
+    fetchOrders();
+  }, [fetchOrders])
+);
 
   const handleStatusChange = async (id, status) => {
     await updateOrderStatus(id, status);

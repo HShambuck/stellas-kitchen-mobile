@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useFocusEffect } from "expo-router";
 import {
   ActivityIndicator, Alert, Linking, RefreshControl,
   ScrollView, StyleSheet, Text, TouchableOpacity, View,
@@ -12,12 +13,12 @@ import { useTheme } from "../../context/ThemeContext";
 
 const STATUS = {
   OUT_FOR_DELIVERY: "Out for Delivery",
-  DELIVERED:        "Delivered",
+  DELIVERED: "Delivered",
 };
 
 const STEPS = [
   { label: "Out for Delivery", status: STATUS.OUT_FOR_DELIVERY, desc: "On your way to the customer" },
-  { label: "Delivered",        status: STATUS.DELIVERED,        desc: "Order complete!" },
+  { label: "Delivered", status: STATUS.DELIVERED, desc: "Order complete!" },
 ];
 
 function StepIndicator({ currentStatus, theme }) {
@@ -25,7 +26,7 @@ function StepIndicator({ currentStatus, theme }) {
     <View style={stepStyles.wrap}>
       {STEPS.map((step, i) => {
         const isActive = step.status === currentStatus;
-        const isDone   = STEPS.slice(0, i + 1).some(s => s.status === currentStatus)
+        const isDone = STEPS.slice(0, i + 1).some(s => s.status === currentStatus)
           || (i === 0 && currentStatus === STATUS.OUT_FOR_DELIVERY)
           || (i === 1 && currentStatus === STATUS.DELIVERED);
         return (
@@ -57,16 +58,16 @@ export default function ActiveDelivery() {
   const { isDark } = useTheme();
   const theme = isDark ? DARK_THEME : LIGHT_THEME;
 
-  const [activeJob,   setActiveJob]   = useState(null);
+  const [activeJob, setActiveJob] = useState(null);
   const [historyJobs, setHistoryJobs] = useState([]);
-  const [loading,     setLoading]     = useState(true);
-  const [refreshing,  setRefreshing]  = useState(false);
-  const [updating,    setUpdating]    = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [updating, setUpdating] = useState(false);
 
   const fetchJobs = useCallback(async () => {
     try {
-      const raw      = await getMyActiveDelivery();
-      const jobs     = Array.isArray(raw) ? raw : [];
+      const raw = await getMyActiveDelivery();
+      const jobs = Array.isArray(raw) ? raw : [];
       setActiveJob(jobs.find(j => j.statusState === STATUS.OUT_FOR_DELIVERY) || null);
       setHistoryJobs(jobs.filter(j => j.statusState === STATUS.DELIVERED));
     } catch {
@@ -82,6 +83,12 @@ export default function ActiveDelivery() {
     const interval = setInterval(fetchJobs, 20_000);
     return () => clearInterval(interval);
   }, [fetchJobs]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchJobs();
+    }, [fetchJobs])
+  );
 
   const handleMarkDelivered = async () => {
     if (!activeJob) return;
@@ -267,43 +274,43 @@ export default function ActiveDelivery() {
 }
 
 const styles = StyleSheet.create({
-  scroll:       { paddingHorizontal: SPACING["2xl"], paddingBottom: SPACING["4xl"] },
-  pageTitle:    { fontSize: FONT_SIZES.xl, fontWeight: "800", paddingTop: SPACING.xl, marginBottom: SPACING.xl },
-  center:       { alignItems: "center", paddingVertical: SPACING["4xl"] },
-  emptyIcon:    { fontSize: 52, marginBottom: SPACING.lg },
-  emptyTitle:   { fontSize: FONT_SIZES.lg, fontWeight: "700", marginBottom: SPACING.xs },
-  emptyBody:    { fontSize: FONT_SIZES.sm, textAlign: "center" },
-  section:      { width: "100%" },
+  scroll: { paddingHorizontal: SPACING["2xl"], paddingBottom: SPACING["4xl"] },
+  pageTitle: { fontSize: FONT_SIZES.xl, fontWeight: "800", paddingTop: SPACING.xl, marginBottom: SPACING.xl },
+  center: { alignItems: "center", paddingVertical: SPACING["4xl"] },
+  emptyIcon: { fontSize: 52, marginBottom: SPACING.lg },
+  emptyTitle: { fontSize: FONT_SIZES.lg, fontWeight: "700", marginBottom: SPACING.xs },
+  emptyBody: { fontSize: FONT_SIZES.sm, textAlign: "center" },
+  section: { width: "100%" },
   sectionLabel: { fontSize: FONT_SIZES.xs, fontWeight: "700", textTransform: "uppercase", letterSpacing: 1, marginBottom: SPACING.sm },
-  card:         { borderRadius: RADIUS["2xl"], padding: SPACING["2xl"], marginBottom: SPACING.lg, borderWidth: 1 },
-  historyCard:  { borderRadius: RADIUS.xl, padding: SPACING.lg, marginBottom: SPACING.sm, borderWidth: 1 },
-  cardHeader:   { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: SPACING.sm },
-  orderId:      { fontSize: FONT_SIZES.sm, fontWeight: "700", letterSpacing: 1 },
+  card: { borderRadius: RADIUS["2xl"], padding: SPACING["2xl"], marginBottom: SPACING.lg, borderWidth: 1 },
+  historyCard: { borderRadius: RADIUS.xl, padding: SPACING.lg, marginBottom: SPACING.sm, borderWidth: 1 },
+  cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: SPACING.sm },
+  orderId: { fontSize: FONT_SIZES.sm, fontWeight: "700", letterSpacing: 1 },
   customerName: { fontSize: FONT_SIZES.xl, fontWeight: "800", marginBottom: SPACING.lg },
-  cardTitle:    { fontSize: FONT_SIZES.base, fontWeight: "700", marginBottom: SPACING.xl },
-  infoRow:      { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: SPACING.sm, borderBottomWidth: 1 },
-  infoLabel:    { fontSize: FONT_SIZES.sm },
-  infoValue:    { fontSize: FONT_SIZES.sm, fontWeight: "600", flex: 1, textAlign: "right" },
-  phoneLink:    { color: "#60A5FA", textDecorationLine: "underline" },
-  itemRow:      { flexDirection: "row", alignItems: "center", paddingVertical: SPACING.xs, gap: SPACING.sm },
-  itemQty:      { color: COLORS.red, fontWeight: "700", width: 24 },
-  itemName:     { flex: 1, fontSize: FONT_SIZES.sm },
-  itemPrice:    { fontSize: FONT_SIZES.sm },
+  cardTitle: { fontSize: FONT_SIZES.base, fontWeight: "700", marginBottom: SPACING.xl },
+  infoRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: SPACING.sm, borderBottomWidth: 1 },
+  infoLabel: { fontSize: FONT_SIZES.sm },
+  infoValue: { fontSize: FONT_SIZES.sm, fontWeight: "600", flex: 1, textAlign: "right" },
+  phoneLink: { color: "#60A5FA", textDecorationLine: "underline" },
+  itemRow: { flexDirection: "row", alignItems: "center", paddingVertical: SPACING.xs, gap: SPACING.sm },
+  itemQty: { color: COLORS.red, fontWeight: "700", width: 24 },
+  itemName: { flex: 1, fontSize: FONT_SIZES.sm },
+  itemPrice: { fontSize: FONT_SIZES.sm },
   deliveredBadge: { color: COLORS.delivered, fontSize: FONT_SIZES.xs, fontWeight: "700" },
   historyPrice: { color: COLORS.delivered, fontSize: FONT_SIZES.sm, fontWeight: "700", marginTop: 4 },
 });
 
 const stepStyles = StyleSheet.create({
-  wrap:     { gap: 0 },
-  row:      { flexDirection: "row", alignItems: "flex-start" },
-  left:     { alignItems: "center", width: 32, marginRight: SPACING.lg },
-  dot:      { width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.border, alignItems: "center", justifyContent: "center" },
-  dotDone:  { backgroundColor: COLORS.delivered },
-  dotActive:{ backgroundColor: COLORS.red },
-  dotText:  { color: COLORS.white, fontSize: FONT_SIZES.xs, fontWeight: "700" },
-  line:     { width: 2, flex: 1, minHeight: 24, backgroundColor: COLORS.border, marginVertical: 4 },
+  wrap: { gap: 0 },
+  row: { flexDirection: "row", alignItems: "flex-start" },
+  left: { alignItems: "center", width: 32, marginRight: SPACING.lg },
+  dot: { width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.border, alignItems: "center", justifyContent: "center" },
+  dotDone: { backgroundColor: COLORS.delivered },
+  dotActive: { backgroundColor: COLORS.red },
+  dotText: { color: COLORS.white, fontSize: FONT_SIZES.xs, fontWeight: "700" },
+  line: { width: 2, flex: 1, minHeight: 24, backgroundColor: COLORS.border, marginVertical: 4 },
   lineDone: { backgroundColor: COLORS.delivered },
-  info:     { flex: 1, paddingBottom: SPACING.lg },
-  label:    { fontSize: FONT_SIZES.base, fontWeight: "600" },
-  desc:     { fontSize: FONT_SIZES.sm, marginTop: 2 },
+  info: { flex: 1, paddingBottom: SPACING.lg },
+  label: { fontSize: FONT_SIZES.base, fontWeight: "600" },
+  desc: { fontSize: FONT_SIZES.sm, marginTop: 2 },
 });
