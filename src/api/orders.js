@@ -34,7 +34,7 @@ export async function updateOrderStatus(orderId, statusState) {
  * Staff manually creates an order.
  */
 export async function createOrder(payload) {
-  const res = await client.post("/api/orders", payload);
+  const res = await client.post("/api/orders/manual", payload);
   return res.data;
 }
 
