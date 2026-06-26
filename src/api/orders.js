@@ -29,6 +29,15 @@ export async function updateOrderStatus(orderId, statusState) {
   return res.data;
 }
 
+/**
+ * POST /api/orders
+ * Staff manually creates an order.
+ */
+export async function createOrder(payload) {
+  const res = await client.post("/api/orders", payload);
+  return res.data;
+}
+
 // ─── Rider Endpoints ──────────────────────────────────────────────────────────
 
 /**
@@ -49,9 +58,8 @@ export async function getAvailableDeliveries() {
  * @returns {Promise<Object|null>}
  */
 export const getMyActiveDelivery = async () => {
-  // 💡 CRUCIAL: Ensure this points to /api/riders/my-deliveries, NOT an old path!
-  const response = await API.get('/riders/my-deliveries'); 
-  return response.data;
+  const res = await client.get("/api/riders/my-deliveries");
+  return res.data;
 };
 
 /**
@@ -65,3 +73,4 @@ export async function acceptDelivery(orderId) {
   const res = await client.post(`/api/orders/${orderId}/accept`);
   return res.data;
 }
+

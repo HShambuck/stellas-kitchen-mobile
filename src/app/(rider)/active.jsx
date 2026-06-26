@@ -10,40 +10,40 @@ import StatusBadge from "../../components/orders/StatusBadge";
 import { COLORS, DARK_THEME, FONT_SIZES, LIGHT_THEME, RADIUS, SPACING } from "../../constants/theme";
 import { useTheme } from "../../context/ThemeContext";
 
-const ORDER_STATUS = {
-  READY_FOR_DISPATCH: "Ready for Dispatch",
-  OUT_FOR_DELIVERY:   "Out for Delivery",
-  DELIVERED:          "Delivered",
+const STATUS = {
+  OUT_FOR_DELIVERY: "Out for Delivery",
+  DELIVERED:        "Delivered",
 };
 
-const DELIVERY_STEPS = [
-  { label: "Out for Delivery", statuses: [ORDER_STATUS.OUT_FOR_DELIVERY], desc: "On your way to the customer" },
-  { label: "Delivered",        statuses: [ORDER_STATUS.DELIVERED],        desc: "Order complete!" },
+const STEPS = [
+  { label: "Out for Delivery", status: STATUS.OUT_FOR_DELIVERY, desc: "On your way to the customer" },
+  { label: "Delivered",        status: STATUS.DELIVERED,        desc: "Order complete!" },
 ];
 
-function StepIndicator({ steps, currentStatus, theme }) {
+function StepIndicator({ currentStatus, theme }) {
   return (
     <View style={stepStyles.wrap}>
-      {steps.map((step, i) => {
-        const isActive = step.statuses.includes(currentStatus);
-        const isDone = steps.slice(0, i).some((s) => s.statuses.includes(currentStatus))
-          || step.statuses.includes(currentStatus);
+      {STEPS.map((step, i) => {
+        const isActive = step.status === currentStatus;
+        const isDone   = STEPS.slice(0, i + 1).some(s => s.status === currentStatus)
+          || (i === 0 && currentStatus === STATUS.OUT_FOR_DELIVERY)
+          || (i === 1 && currentStatus === STATUS.DELIVERED);
         return (
-          <View key={i} style={stepStyles.row}>
+          <View key={step.status} style={stepStyles.row}>
             <View style={stepStyles.left}>
               <View style={[stepStyles.dot, isDone && stepStyles.dotDone, isActive && stepStyles.dotActive]}>
                 <Text style={stepStyles.dotText}>{isDone ? "✓" : i + 1}</Text>
               </View>
-              {i < steps.length - 1 && (
+              {i < STEPS.length - 1 && (
                 <View style={[stepStyles.line, isDone && stepStyles.lineDone]} />
               )}
             </View>
             <View style={stepStyles.info}>
-              <Text style={[stepStyles.stepLabel, { color: isActive ? theme.text : theme.textMuted }]}>
+              <Text style={[stepStyles.label, { color: isActive ? theme.text : theme.textMuted }]}>
                 {step.label}
               </Text>
               {isActive && (
-                <Text style={[stepStyles.stepSubLabel, { color: theme.textMuted }]}>{step.desc}</Text>
+                <Text style={[stepStyles.desc, { color: theme.textMuted }]}>{step.desc}</Text>
               )}
             </View>
           </View>
@@ -63,43 +63,47 @@ export default function ActiveDelivery() {
   const [refreshing,  setRefreshing]  = useState(false);
   const [updating,    setUpdating]    = useState(false);
 
-  const fetchDeliveriesFlow = useCallback(async () => {
+  const fetchJobs = useCallback(async () => {
     try {
-      const rawJobs  = await getMyActiveDelivery();
-      const jobsArray = Array.isArray(rawJobs) ? rawJobs : [];
-      const active  = jobsArray.find(j => j.statusState === ORDER_STATUS.OUT_FOR_DELIVERY);
-      const history = jobsArray.filter(j => j.statusState === ORDER_STATUS.DELIVERED);
-      setActiveJob(active || null);
-      setHistoryJobs(history);
-    } catch { setActiveJob(null); }
-    finally { setLoading(false); setRefreshing(false); }
+      const raw      = await getMyActiveDelivery();
+      const jobs     = Array.isArray(raw) ? raw : [];
+      setActiveJob(jobs.find(j => j.statusState === STATUS.OUT_FOR_DELIVERY) || null);
+      setHistoryJobs(jobs.filter(j => j.statusState === STATUS.DELIVERED));
+    } catch {
+      setActiveJob(null);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
 
   useEffect(() => {
-    fetchDeliveriesFlow();
-    const interval = setInterval(fetchDeliveriesFlow, 20_000);
+    fetchJobs();
+    const interval = setInterval(fetchJobs, 20_000);
     return () => clearInterval(interval);
-  }, [fetchDeliveriesFlow]);
+  }, [fetchJobs]);
 
-  const handleUpdateStatus = async (newStatus) => {
+  const handleMarkDelivered = async () => {
     if (!activeJob) return;
     setUpdating(true);
     try {
-      await updateOrderStatus(activeJob._id || activeJob.id, newStatus);
-      await fetchDeliveriesFlow();
+      await updateOrderStatus(activeJob._id || activeJob.id, STATUS.DELIVERED);
+      await fetchJobs();
     } catch (e) {
       Alert.alert("Error", e.message || "Could not update status.");
-    } finally { setUpdating(false); }
+    } finally {
+      setUpdating(false);
+    }
   };
 
-  const handleCallCustomer = (phone) => {
-    if (!phone) { Alert.alert("Error", "No phone number for this order."); return; }
+  const callCustomer = (phone) => {
+    if (!phone) { Alert.alert("No phone number", "This order has no phone number."); return; }
     Linking.openURL(`tel:${phone}`);
   };
 
-  const openMaps = () => {
-    if (!activeJob?.deliveryAddress) return;
-    const q = encodeURIComponent(activeJob.deliveryAddress + ", Shai Hills, Ghana");
+  const openMaps = (address) => {
+    if (!address) return;
+    const q = encodeURIComponent(`${address}, Shai Hills, Ghana`);
     Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${q}`);
   };
 
@@ -111,19 +115,19 @@ export default function ActiveDelivery() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => { setRefreshing(true); fetchDeliveriesFlow(); }}
+            onRefresh={() => { setRefreshing(true); fetchJobs(); }}
             tintColor={COLORS.red}
           />
         }
       >
-        <Text style={[styles.title, { color: theme.text }]}>Logistics Run</Text>
+        <Text style={[styles.pageTitle, { color: theme.text }]}>Logistics Run</Text>
 
         {loading ? (
-          <View style={styles.loading}>
+          <View style={styles.center}>
             <ActivityIndicator color={COLORS.red} size="large" />
           </View>
         ) : !activeJob && historyJobs.length === 0 ? (
-          <View style={styles.empty}>
+          <View style={styles.center}>
             <Text style={styles.emptyIcon}>🏁</Text>
             <Text style={[styles.emptyTitle, { color: theme.text }]}>No active tasks</Text>
             <Text style={[styles.emptyBody, { color: theme.textFaint }]}>
@@ -132,10 +136,14 @@ export default function ActiveDelivery() {
           </View>
         ) : (
           <>
+            {/* ── Active job ── */}
             {activeJob && (
-              <View style={styles.sectionContainer}>
-                <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>⚠️ Current Active Run</Text>
+              <View style={styles.section}>
+                <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>
+                  ⚡ Current Run
+                </Text>
 
+                {/* Main card */}
                 <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
                   <View style={styles.cardHeader}>
                     <Text style={[styles.orderId, { color: theme.textMuted }]}>
@@ -143,85 +151,109 @@ export default function ActiveDelivery() {
                     </Text>
                     <StatusBadge status={activeJob.statusState} />
                   </View>
+
                   <Text style={[styles.customerName, { color: theme.text }]}>
                     {activeJob.customerName || "Customer"}
                   </Text>
 
+                  {/* Phone — tappable dialer */}
                   <TouchableOpacity
-                    style={[styles.infoRow, { borderBottomColor: theme.border }]}
-                    onPress={() => handleCallCustomer(activeJob.phoneNumber)}
+                    onPress={() => callCustomer(activeJob.phoneNumber)}
                     activeOpacity={0.7}
+                    style={[styles.infoRow, { borderBottomColor: theme.border }]}
                   >
-                    <Text style={[styles.infoLabel, { color: theme.textMuted }]}>📞 Customer Phone</Text>
-                    <Text style={[styles.infoValue, styles.phoneLinkText]}>
-                      {activeJob.phoneNumber} 📱
+                    <Text style={[styles.infoLabel, { color: theme.textMuted }]}>📞 Phone</Text>
+                    <Text style={[styles.infoValue, styles.phoneLink]}>
+                      {activeJob.phoneNumber || "—"} 📱
                     </Text>
                   </TouchableOpacity>
 
+                  {/* Address */}
                   <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
                     <Text style={[styles.infoLabel, { color: theme.textMuted }]}>📍 Address</Text>
-                    <Text style={[styles.infoValue, { color: theme.text }]}>{activeJob.deliveryAddress}</Text>
-                  </View>
-
-                  <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
-                    <Text style={[styles.infoLabel, { color: theme.textMuted }]}>💰 Total Price</Text>
-                    <Text style={[styles.infoValue, { color: COLORS.red, fontWeight: "800" }]}>
-                      GHS {Number(activeJob.totalAmount || activeJob.totalPrice || 0).toFixed(2)}
+                    <Text style={[styles.infoValue, { color: theme.text }]}>
+                      {activeJob.deliveryAddress || "—"}
                     </Text>
                   </View>
 
-                  <Button variant="secondary" label="Open in Maps" onPress={openMaps}
-                    size="sm" style={{ marginTop: SPACING.lg }} />
+                  {/* Total */}
+                  <View style={[styles.infoRow, { borderBottomColor: "transparent" }]}>
+                    <Text style={[styles.infoLabel, { color: theme.textMuted }]}>💰 Total</Text>
+                    <Text style={[styles.infoValue, { color: COLORS.red, fontWeight: "800" }]}>
+                      GHS {Number(activeJob.totalAmount || 0).toFixed(2)}
+                    </Text>
+                  </View>
+
+                  <Button
+                    variant="secondary"
+                    label="Open in Maps"
+                    onPress={() => openMaps(activeJob.deliveryAddress)}
+                    size="sm"
+                    style={{ marginTop: SPACING.lg }}
+                  />
                 </View>
 
+                {/* Tracking */}
                 <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                  <Text style={[styles.cardSectionTitle, { color: theme.text }]}>Delivery Tracking</Text>
-                  <StepIndicator steps={DELIVERY_STEPS} currentStatus={activeJob.statusState} theme={theme} />
+                  <Text style={[styles.cardTitle, { color: theme.text }]}>Delivery Progress</Text>
+                  <StepIndicator currentStatus={activeJob.statusState} theme={theme} />
                 </View>
 
+                {/* Items */}
                 <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                  <Text style={[styles.cardSectionTitle, { color: theme.text }]}>Items Details</Text>
-                  {(activeJob.items || []).map((item, i) => (
-                    <View key={i} style={styles.itemRow}>
-                      <Text style={styles.itemQty}>{item.quantity || 1}×</Text>
-                      <Text style={[styles.itemName, { color: theme.text }]}>
-                        {item.foodItemName || item.name || "Item"}
-                      </Text>
-                      <Text style={[styles.itemPrice, { color: theme.textMuted }]}>
-                        GHS {((item.price || 0) * (item.quantity || 1)).toFixed(2)}
-                      </Text>
-                    </View>
-                  ))}
+                  <Text style={[styles.cardTitle, { color: theme.text }]}>Items</Text>
+                  {(activeJob.items || []).length === 0 ? (
+                    <Text style={[styles.infoLabel, { color: theme.textFaint }]}>No items listed</Text>
+                  ) : (
+                    (activeJob.items || []).map((item, i) => (
+                      <View key={item._id || item.id || i} style={styles.itemRow}>
+                        <Text style={styles.itemQty}>{item.quantity || 1}×</Text>
+                        <Text style={[styles.itemName, { color: theme.text }]}>
+                          {item.foodItemName || item.name || item.menuItemName || "Item"}
+                        </Text>
+                        <Text style={[styles.itemPrice, { color: theme.textMuted }]}>
+                          GHS {((item.price || 0) * (item.quantity || 1)).toFixed(2)}
+                        </Text>
+                      </View>
+                    ))
+                  )}
                 </View>
 
                 <Button
-                  label="Mark as Delivered"
-                  onPress={() => handleUpdateStatus(ORDER_STATUS.DELIVERED)}
+                  label="Mark as Delivered ✓"
+                  onPress={handleMarkDelivered}
                   loading={updating}
                   size="lg"
-                  style={{ marginTop: SPACING.md }}
+                  style={{ marginTop: SPACING.sm }}
                 />
               </View>
             )}
 
+            {/* ── History ── */}
             {historyJobs.length > 0 && (
-              <View style={[styles.sectionContainer, { marginTop: SPACING.xl }]}>
+              <View style={[styles.section, activeJob ? { marginTop: SPACING.xl } : {}]}>
                 <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>
-                  🏁 Shift Finished Runs ({historyJobs.length})
+                  🏁 Completed This Shift ({historyJobs.length})
                 </Text>
                 {historyJobs.map((job) => (
-                  <View key={job._id || job.id}
-                    style={[styles.card, styles.historyCard, { borderColor: theme.border }]}>
+                  <View
+                    key={job._id || job.id}
+                    style={[styles.historyCard, { backgroundColor: theme.card, borderColor: theme.border }]}
+                  >
                     <View style={styles.cardHeader}>
-                      <Text style={styles.historyOrderId}>
+                      <Text style={[styles.orderId, { color: theme.textMuted }]}>
                         #{String(job._id || job.id).slice(-5).toUpperCase()}
                       </Text>
-                      <Text style={styles.historyTimeText}>Delivered ✅</Text>
+                      <Text style={styles.deliveredBadge}>Delivered ✅</Text>
                     </View>
-                    <Text style={styles.historyCustomerName}>{job.customerName || "Customer"}</Text>
-                    <Text style={styles.historyAddressText}>{job.deliveryAddress}</Text>
-                    <Text style={styles.historyPriceText}>
-                      GHS {Number(job.totalAmount || job.totalPrice || 0).toFixed(2)}
+                    <Text style={[styles.customerName, { color: theme.text, fontSize: FONT_SIZES.base }]}>
+                      {job.customerName || "Customer"}
+                    </Text>
+                    <Text style={[styles.infoLabel, { color: theme.textMuted, marginTop: 2 }]}>
+                      {job.deliveryAddress || "—"}
+                    </Text>
+                    <Text style={styles.historyPrice}>
+                      GHS {Number(job.totalAmount || 0).toFixed(2)}
                     </Text>
                   </View>
                 ))}
@@ -235,47 +267,43 @@ export default function ActiveDelivery() {
 }
 
 const styles = StyleSheet.create({
-  scroll:          { paddingHorizontal: SPACING["2xl"], paddingBottom: SPACING["4xl"] },
-  title:           { fontSize: FONT_SIZES.xl, fontWeight: "800", paddingTop: SPACING.xl, marginBottom: SPACING.xl },
-  sectionContainer:{ width: "100%" },
-  sectionLabel:    { fontSize: FONT_SIZES.xs, fontWeight: "700", textTransform: "uppercase", letterSpacing: 1, marginBottom: SPACING.sm },
-  loading:         { paddingVertical: SPACING["4xl"], alignItems: "center" },
-  empty:           { alignItems: "center", paddingVertical: SPACING["4xl"] },
-  emptyIcon:       { fontSize: 52, marginBottom: SPACING.lg },
-  emptyTitle:      { fontSize: FONT_SIZES.lg, fontWeight: "700" },
-  emptyBody:       { fontSize: FONT_SIZES.sm, marginTop: SPACING.xs },
-  card:            { borderRadius: RADIUS["2xl"], padding: SPACING["2xl"], marginBottom: SPACING.lg, borderWidth: 1 },
-  historyCard:     { backgroundColor: "#111827", opacity: 0.85 },
-  cardHeader:      { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: SPACING.sm },
-  orderId:         { fontSize: FONT_SIZES.sm, fontWeight: "700", letterSpacing: 1 },
-  historyOrderId:  { color: "#4B5563", fontSize: FONT_SIZES.xs, fontWeight: "700" },
-  customerName:    { fontSize: FONT_SIZES.xl, fontWeight: "800", marginBottom: SPACING.lg },
-  historyCustomerName: { color: "#E5E7EB", fontSize: FONT_SIZES.base, fontWeight: "700" },
-  historyAddressText:  { color: "#9CA3AF", fontSize: FONT_SIZES.xs, marginTop: 2 },
-  historyPriceText:    { color: COLORS.delivered, fontSize: FONT_SIZES.sm, fontWeight: "700", marginTop: 4 },
-  historyTimeText:     { color: COLORS.delivered, fontSize: FONT_SIZES.xs, fontWeight: "600" },
-  infoRow:         { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", paddingVertical: SPACING.sm, borderBottomWidth: 1 },
-  infoLabel:       { fontSize: FONT_SIZES.sm },
-  infoValue:       { fontSize: FONT_SIZES.sm, fontWeight: "600", flex: 1, textAlign: "right" },
-  phoneLinkText:   { color: "#60A5FA", textDecorationLine: "underline" },
-  cardSectionTitle:{ fontSize: FONT_SIZES.base, fontWeight: "700", marginBottom: SPACING.xl },
-  itemRow:         { flexDirection: "row", alignItems: "center", paddingVertical: SPACING.xs, gap: SPACING.sm },
-  itemQty:         { color: COLORS.red, fontWeight: "700", width: 24 },
-  itemName:        { flex: 1, fontSize: FONT_SIZES.sm },
-  itemPrice:       { fontSize: FONT_SIZES.sm },
+  scroll:       { paddingHorizontal: SPACING["2xl"], paddingBottom: SPACING["4xl"] },
+  pageTitle:    { fontSize: FONT_SIZES.xl, fontWeight: "800", paddingTop: SPACING.xl, marginBottom: SPACING.xl },
+  center:       { alignItems: "center", paddingVertical: SPACING["4xl"] },
+  emptyIcon:    { fontSize: 52, marginBottom: SPACING.lg },
+  emptyTitle:   { fontSize: FONT_SIZES.lg, fontWeight: "700", marginBottom: SPACING.xs },
+  emptyBody:    { fontSize: FONT_SIZES.sm, textAlign: "center" },
+  section:      { width: "100%" },
+  sectionLabel: { fontSize: FONT_SIZES.xs, fontWeight: "700", textTransform: "uppercase", letterSpacing: 1, marginBottom: SPACING.sm },
+  card:         { borderRadius: RADIUS["2xl"], padding: SPACING["2xl"], marginBottom: SPACING.lg, borderWidth: 1 },
+  historyCard:  { borderRadius: RADIUS.xl, padding: SPACING.lg, marginBottom: SPACING.sm, borderWidth: 1 },
+  cardHeader:   { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: SPACING.sm },
+  orderId:      { fontSize: FONT_SIZES.sm, fontWeight: "700", letterSpacing: 1 },
+  customerName: { fontSize: FONT_SIZES.xl, fontWeight: "800", marginBottom: SPACING.lg },
+  cardTitle:    { fontSize: FONT_SIZES.base, fontWeight: "700", marginBottom: SPACING.xl },
+  infoRow:      { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: SPACING.sm, borderBottomWidth: 1 },
+  infoLabel:    { fontSize: FONT_SIZES.sm },
+  infoValue:    { fontSize: FONT_SIZES.sm, fontWeight: "600", flex: 1, textAlign: "right" },
+  phoneLink:    { color: "#60A5FA", textDecorationLine: "underline" },
+  itemRow:      { flexDirection: "row", alignItems: "center", paddingVertical: SPACING.xs, gap: SPACING.sm },
+  itemQty:      { color: COLORS.red, fontWeight: "700", width: 24 },
+  itemName:     { flex: 1, fontSize: FONT_SIZES.sm },
+  itemPrice:    { fontSize: FONT_SIZES.sm },
+  deliveredBadge: { color: COLORS.delivered, fontSize: FONT_SIZES.xs, fontWeight: "700" },
+  historyPrice: { color: COLORS.delivered, fontSize: FONT_SIZES.sm, fontWeight: "700", marginTop: 4 },
 });
 
 const stepStyles = StyleSheet.create({
-  wrap:           { gap: 0 },
-  row:            { flexDirection: "row", alignItems: "flex-start" },
-  left:           { alignItems: "center", width: 32, marginRight: SPACING.lg },
-  dot:            { width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.border, alignItems: "center", justifyContent: "center" },
-  dotDone:        { backgroundColor: COLORS.delivered },
-  dotActive:      { backgroundColor: COLORS.red },
-  dotText:        { color: COLORS.white, fontSize: FONT_SIZES.xs, fontWeight: "700" },
-  line:           { width: 2, flex: 1, minHeight: 24, backgroundColor: COLORS.border, marginVertical: 4 },
-  lineDone:       { backgroundColor: COLORS.delivered },
-  info:           { flex: 1, paddingBottom: SPACING.lg },
-  stepLabel:      { fontSize: FONT_SIZES.base, fontWeight: "600" },
-  stepSubLabel:   { fontSize: FONT_SIZES.sm, marginTop: 2 },
+  wrap:     { gap: 0 },
+  row:      { flexDirection: "row", alignItems: "flex-start" },
+  left:     { alignItems: "center", width: 32, marginRight: SPACING.lg },
+  dot:      { width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.border, alignItems: "center", justifyContent: "center" },
+  dotDone:  { backgroundColor: COLORS.delivered },
+  dotActive:{ backgroundColor: COLORS.red },
+  dotText:  { color: COLORS.white, fontSize: FONT_SIZES.xs, fontWeight: "700" },
+  line:     { width: 2, flex: 1, minHeight: 24, backgroundColor: COLORS.border, marginVertical: 4 },
+  lineDone: { backgroundColor: COLORS.delivered },
+  info:     { flex: 1, paddingBottom: SPACING.lg },
+  label:    { fontSize: FONT_SIZES.base, fontWeight: "600" },
+  desc:     { fontSize: FONT_SIZES.sm, marginTop: 2 },
 });
