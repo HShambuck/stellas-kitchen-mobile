@@ -1,124 +1,82 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useRef, useState } from "react";
 import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+  KeyboardAvoidingView, Platform, ScrollView, StyleSheet,
+  Text, TextInput, TouchableOpacity, View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as SecureStore from "expo-secure-store";
 import Button from "../../components/common/Button";
 import SafeView from "../../components/common/SafeView";
 import {
-  COLORS, FONT_SIZES, RADIUS, ROLES, SPACING, VEHICLE_TYPES,
+  COLORS, DARK_THEME, FONT_SIZES, LIGHT_THEME,
+  RADIUS, ROLES, SPACING, VEHICLE_TYPES,
 } from "../../constants/theme";
 import { useAuth } from "../../context/AuthContext";
+import { useTheme } from "../../context/ThemeContext";
 
-// ─── Reusable input field ─────────────────────────────────────────────────────
-function FormField({
-  label,
-  value,
-  onChangeText,
-  placeholder,
-  secureTextEntry,
-  keyboardType,
-  autoCapitalize,
-  returnKeyType,
-  onSubmitEditing,
-  inputRef,
-}) {
-  const [focused, setFocused] = useState(false);
+function Field({ label, value, onChangeText, placeholder, secure,
+  keyboardType, autoCapitalize, returnKeyType, onSubmit, inputRef, theme, focused, onFocus, onBlur }) {
   return (
-    <View>
-      <Text style={fieldStyles.label}>{label}</Text>
-      <View style={[fieldStyles.container, focused && fieldStyles.focused]}>
-        <TextInput
-          ref={inputRef}
-          value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
-          placeholderTextColor="#52524E"
-          secureTextEntry={secureTextEntry}
-          keyboardType={keyboardType || "default"}
-          autoCapitalize={autoCapitalize ?? "words"}
-          returnKeyType={returnKeyType || "next"}
-          onSubmitEditing={onSubmitEditing}
-          blurOnSubmit={!onSubmitEditing}
-          style={fieldStyles.input}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-        />
-      </View>
+    <View style={{ marginBottom: SPACING.lg }}>
+      <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>{label}</Text>
+      <TextInput
+        ref={inputRef}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={theme.textFaint}
+        secureTextEntry={secure}
+        keyboardType={keyboardType || "default"}
+        autoCapitalize={autoCapitalize ?? "words"}
+        returnKeyType={returnKeyType || "next"}
+        onSubmitEditing={onSubmit}
+        blurOnSubmit={!onSubmit}
+        style={[
+          styles.input,
+          { backgroundColor: theme.inputBg, color: theme.text,
+            borderColor: focused ? COLORS.red : theme.border },
+        ]}
+        onFocus={onFocus}
+        onBlur={onBlur}
+      />
     </View>
   );
 }
 
-const fieldStyles = StyleSheet.create({
-  label: {
-    color: "#9CA3AF",
-    fontSize: FONT_SIZES.xs,
-    fontWeight: "600",
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-    marginBottom: SPACING.xs,
-  },
-  container: {
-    backgroundColor: COLORS.stone,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    marginBottom: SPACING.md,
-  },
-  focused: { borderColor: COLORS.red },
-  input: { color: COLORS.white, fontSize: FONT_SIZES.base, minHeight: 24 },
-});
-
-// ─── Screen ───────────────────────────────────────────────────────────────────
 export default function RegisterScreen() {
   const { role } = useLocalSearchParams();
   const { signUp } = useAuth();
+  const { isDark } = useTheme();
+  const theme = isDark ? DARK_THEME : LIGHT_THEME;
   const insets = useSafeAreaInsets();
   const isStaff = role === ROLES.STAFF || role === "staff";
 
   const [form, setForm] = useState({
-    name: "",
-    phoneNumber: "",
-    password: "",
-    confirmPassword: "",
-    locationToken: "",
-    vehicleType: "",
-    vehiclePlate: "",
+    name: "", phoneNumber: "", password: "", confirmPassword: "",
+    locationToken: "", vehicleType: "", vehiclePlate: "",
   });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [loading,  setLoading]  = useState(false);
+  const [error,    setError]    = useState("");
+  const [focused,  setFocused]  = useState(null);
 
-  // Refs for sequential field focus
-  const phoneRef = useRef(null);
-  const passRef = useRef(null);
+  const phoneRef   = useRef(null);
+  const passRef    = useRef(null);
   const confirmRef = useRef(null);
-  const tokenRef = useRef(null);
-  const plateRef = useRef(null);
+  const tokenRef   = useRef(null);
+  const plateRef   = useRef(null);
 
   const set = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
 
   const validate = () => {
-    if (!form.name.trim()) return "Please enter your full name.";
+    if (!form.name.trim())        return "Please enter your full name.";
     if (!form.phoneNumber.trim()) return "Please enter your phone number.";
-    const digits = form.phoneNumber.replace(/\D/g, "");
-    if (digits.length < 9 || digits.length > 13)
-      return "Enter a valid phone number (e.g. 023#######).";
-    if (form.password.length < 6) return "Password must be at least 6 characters.";
+    const d = form.phoneNumber.replace(/\D/g, "");
+    if (d.length < 9 || d.length > 13) return "Enter a valid phone number.";
+    if (form.password.length < 6)       return "Password must be at least 6 characters.";
     if (form.password !== form.confirmPassword) return "Passwords do not match.";
-    if (isStaff && !form.locationToken.trim())
-      return "Please enter your kitchen location token.";
-    if (!isStaff && !form.vehicleType)
-      return "Please select your vehicle type.";
+    if (isStaff && !form.locationToken.trim()) return "Please enter your kitchen location token.";
+    if (!isStaff && !form.vehicleType) return "Please select your vehicle type.";
     return null;
   };
 
@@ -127,11 +85,7 @@ export default function RegisterScreen() {
     if (err) return setError(err);
     setError("");
     setLoading(true);
-
-    const formattedRole = role
-      ? role.charAt(0).toUpperCase() + role.slice(1).toLowerCase()
-      : "Staff";
-
+    const formattedRole = role ? role.charAt(0).toUpperCase() + role.slice(1).toLowerCase() : "Staff";
     const payload = {
       role: formattedRole,
       name: form.name.trim(),
@@ -139,116 +93,69 @@ export default function RegisterScreen() {
       password: form.password,
       ...(isStaff
         ? { locationToken: form.locationToken.trim() }
-        : {
-          vehicleType: form.vehicleType,
-          vehicleRegistration: form.vehiclePlate.trim(),
-        }),
+        : { vehicleType: form.vehicleType, vehicleRegistration: form.vehiclePlate.trim() }),
     };
-
     try {
       await signUp(payload);
+      await SecureStore.setItemAsync("has_registered", "true");
     } catch (e) {
       setError(e.message || "Registration failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
-  const keyboardOffset = Platform.OS === "ios" ? insets.top + 10 : 0;
+  const fp = (name) => ({
+    focused: focused === name,
+    onFocus: () => setFocused(name),
+    onBlur:  () => setFocused(null),
+    theme,
+  });
+
+  const accent = isStaff ? COLORS.red : "#3B82F6";
+  const accentBg = isStaff ? "#FEE2E2" : "#DBEAFE";
 
   return (
-    <SafeView variant="dark" edges={["top", "left", "right"]}>
+    <SafeView variant={isDark ? "dark" : "light"} edges={["top", "left", "right"]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={keyboardOffset}
+        keyboardVerticalOffset={Platform.OS === "ios" ? insets.top + 10 : 0}
         style={{ flex: 1 }}
       >
         <ScrollView
-          contentContainerStyle={[
-            styles.scroll,
-            { paddingBottom: insets.bottom + SPACING["4xl"] },
-          ]}
+          contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + SPACING["4xl"] }]}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
           showsVerticalScrollIndicator={false}
         >
-          {/* Back */}
           <TouchableOpacity onPress={() => router.back()} style={styles.back}>
-            <Text style={styles.backText}>← Back</Text>
+            <Text style={[styles.backText, { color: theme.textMuted }]}>← Back</Text>
           </TouchableOpacity>
 
           {/* Header */}
           <View style={styles.header}>
-            <View style={[styles.roleTag, isStaff ? styles.roleTagRed : styles.roleTagBlue]}>
-              <Text style={styles.roleTagText}>
-                {isStaff ? "🍳 Kitchen Staff" : "🏍️ Delivery Rider"}
+            <View style={[styles.roleBadge, { backgroundColor: accentBg }]}>
+              <Text style={[styles.roleBadgeText, { color: accent }]}>
+                {isStaff ? "🍳  Kitchen Staff" : "🏍️  Delivery Rider"}
               </Text>
             </View>
-            <Text style={styles.title}>Create your account</Text>
-            <Text style={styles.subtitle}>
+            <Text style={[styles.headline, { color: theme.text }]}>Create account</Text>
+            <Text style={[styles.sub, { color: theme.textMuted }]}>
               {isStaff
-                ? "You'll need a location token from your manager."
-                : "Tell us about your ride so we can assign deliveries correctly."}
+                ? "You'll need a location token from your manager"
+                : "Tell us about your vehicle for delivery matching"}
             </Text>
           </View>
 
-          {/* Common fields — each field focuses the next on submit */}
-          <FormField
-            label="Full Name"
-            value={form.name}
-            onChangeText={set("name")}
-            placeholder="e.g. Kwame Mensah"
-            onSubmitEditing={() => phoneRef.current?.focus()}
-          />
-          <FormField
-            inputRef={phoneRef}
-            label="Phone Number"
-            value={form.phoneNumber}
-            onChangeText={set("phoneNumber")}
-            placeholder="023#######"
-            autoCapitalize="none"
-            keyboardType="phone-pad"
-            onSubmitEditing={() => passRef.current?.focus()}
-          />
-          <FormField
-            inputRef={passRef}
-            label="Password"
-            value={form.password}
-            onChangeText={set("password")}
-            placeholder="Min. 6 characters"
-            secureTextEntry
-            autoCapitalize="none"
-            onSubmitEditing={() => confirmRef.current?.focus()}
-          />
-          <FormField
-            inputRef={confirmRef}
-            label="Confirm Password"
-            value={form.confirmPassword}
-            onChangeText={set("confirmPassword")}
-            placeholder="Repeat password"
-            secureTextEntry
-            autoCapitalize="none"
-            onSubmitEditing={() =>
-              isStaff ? tokenRef.current?.focus() : null
-            }
-            returnKeyType={isStaff ? "next" : "done"}
-          />
+          {/* Fields */}
+          <Field {...fp("name")}    label="Full Name"        value={form.name}           onChangeText={set("name")}           placeholder="e.g. Kwame Mensah"  onSubmit={() => phoneRef.current?.focus()} />
+          <Field {...fp("phone")}   label="Phone Number"     value={form.phoneNumber}     onChangeText={set("phoneNumber")}    placeholder="023#######"         autoCapitalize="none" keyboardType="phone-pad" inputRef={phoneRef}   onSubmit={() => passRef.current?.focus()} />
+          <Field {...fp("pass")}    label="Password"         value={form.password}        onChangeText={set("password")}       placeholder="Min. 6 characters"  secure autoCapitalize="none" inputRef={passRef}    onSubmit={() => confirmRef.current?.focus()} />
+          <Field {...fp("confirm")} label="Confirm Password" value={form.confirmPassword} onChangeText={set("confirmPassword")}placeholder="Repeat password"    secure autoCapitalize="none" inputRef={confirmRef} returnKeyType={isStaff ? "next" : "done"} onSubmit={() => isStaff ? tokenRef.current?.focus() : null} />
 
-          {/* Role-specific */}
           {isStaff ? (
-            <FormField
-              inputRef={tokenRef}
-              label="Location Token"
-              value={form.locationToken}
-              onChangeText={set("locationToken")}
-              placeholder="Provided by your manager"
-              autoCapitalize="none"
-              returnKeyType="done"
-              onSubmitEditing={handleSubmit}
-            />
+            <Field {...fp("token")} label="Location Token" value={form.locationToken} onChangeText={set("locationToken")} placeholder="Provided by your manager" autoCapitalize="none" returnKeyType="done" inputRef={tokenRef} onSubmit={handleSubmit} />
           ) : (
             <>
-              <Text style={fieldStyles.label}>Vehicle Type</Text>
+              <Text style={[styles.fieldLabel, { color: theme.textMuted }]}>Vehicle Type</Text>
               <View style={styles.vehicleGrid}>
                 {VEHICLE_TYPES.map((v) => (
                   <TouchableOpacity
@@ -256,28 +163,21 @@ export default function RegisterScreen() {
                     onPress={() => set("vehicleType")(v.value)}
                     style={[
                       styles.vehicleChip,
-                      form.vehicleType === v.value && styles.vehicleChipActive,
+                      { borderColor: theme.border, backgroundColor: theme.card },
+                      form.vehicleType === v.value && { borderColor: COLORS.red, backgroundColor: "#3F1212" },
                     ]}
                   >
                     <Text style={[
                       styles.vehicleChipText,
-                      form.vehicleType === v.value && styles.vehicleChipTextActive,
+                      { color: theme.textMuted },
+                      form.vehicleType === v.value && { color: COLORS.red },
                     ]}>
                       {v.label}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
-              <FormField
-                inputRef={plateRef}
-                label="Plate / ID (optional)"
-                value={form.vehiclePlate}
-                onChangeText={set("vehiclePlate")}
-                placeholder="e.g. GR-1234-22"
-                autoCapitalize="characters"
-                returnKeyType="done"
-                onSubmitEditing={handleSubmit}
-              />
+              <Field {...fp("plate")} label="Plate / ID (optional)" value={form.vehiclePlate} onChangeText={set("vehiclePlate")} placeholder="e.g. GR-1234-22" autoCapitalize="characters" returnKeyType="done" inputRef={plateRef} onSubmit={handleSubmit} />
             </>
           )}
 
@@ -287,22 +187,12 @@ export default function RegisterScreen() {
             </View>
           )}
 
-          <Button
-            label="Create Account"
-            onPress={handleSubmit}
-            loading={loading}
-            disabled={loading}
-            size="lg"
-            style={{ marginTop: SPACING.md }}
-          />
+          <Button label="Create Account" onPress={handleSubmit} loading={loading} disabled={loading} size="lg" style={{ marginBottom: SPACING.xl }} />
 
-          <TouchableOpacity
-            onPress={() => router.replace("/(auth)/login")}
-            style={styles.loginLink}
-          >
-            <Text style={styles.loginLinkText}>
-              Already have an account?{" "}
-              <Text style={styles.loginLinkBold}>Sign in</Text>
+          <TouchableOpacity onPress={() => router.replace("/(auth)/login")} style={styles.link}>
+            <Text style={[styles.linkText, { color: theme.textMuted }]}>
+              Have an account?{"  "}
+              <Text style={{ color: COLORS.red, fontWeight: "700" }}>Sign in</Text>
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -312,63 +202,21 @@ export default function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    flexGrow: 1,
-    paddingHorizontal: SPACING["2xl"],
-  },
-  back: { paddingTop: SPACING.xl, marginBottom: SPACING.lg },
-  backText: { color: "#9CA3AF", fontSize: FONT_SIZES.base, fontWeight: "600" },
-
-  header: { marginBottom: SPACING["2xl"] },
-  roleTag: {
-    alignSelf: "flex-start",
-    paddingVertical: SPACING.xs,
-    paddingHorizontal: SPACING.md,
-    borderRadius: RADIUS.full,
-    marginBottom: SPACING.lg,
-  },
-  roleTagRed: { backgroundColor: "#FEE2E2" },
-  roleTagBlue: { backgroundColor: "#DBEAFE" },
-  roleTagText: { fontWeight: "700", fontSize: FONT_SIZES.sm, color: COLORS.dark },
-
-  title: {
-    color: COLORS.white,
-    fontSize: FONT_SIZES["2xl"],
-    fontWeight: "800",
-    marginBottom: SPACING.sm,
-  },
-  subtitle: { color: "#9CA3AF", fontSize: FONT_SIZES.sm, lineHeight: 20 },
-
-  vehicleGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: SPACING.sm,
-    marginBottom: SPACING.lg,
-    marginTop: SPACING.xs,
-  },
-  vehicleChip: {
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.lg,
-    borderRadius: RADIUS.full,
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.stone,
-  },
-  vehicleChipActive: { borderColor: COLORS.red, backgroundColor: "#3F1212" },
-  vehicleChipText: { color: "#9CA3AF", fontSize: FONT_SIZES.sm, fontWeight: "600" },
-  vehicleChipTextActive: { color: COLORS.red },
-
-  errorBox: {
-    backgroundColor: "#3F1212",
-    borderRadius: RADIUS.lg,
-    padding: SPACING.lg,
-    marginBottom: SPACING.md,
-    borderWidth: 1,
-    borderColor: "#7F1D1D",
-  },
-  errorText: { color: "#FCA5A5", fontSize: FONT_SIZES.sm, lineHeight: 20 },
-
-  loginLink: { alignItems: "center", paddingVertical: SPACING.xl },
-  loginLinkText: { color: "#6B7280", fontSize: FONT_SIZES.sm },
-  loginLinkBold: { color: COLORS.red, fontWeight: "700" },
+  scroll:           { flexGrow: 1, paddingHorizontal: SPACING["2xl"] },
+  back:             { paddingTop: SPACING.xl, marginBottom: SPACING.lg },
+  backText:         { fontSize: FONT_SIZES.base, fontWeight: "600" },
+  header:           { marginBottom: SPACING["2xl"] },
+  roleBadge:        { alignSelf: "flex-start", paddingVertical: SPACING.xs, paddingHorizontal: SPACING.md, borderRadius: RADIUS.full, marginBottom: SPACING.lg },
+  roleBadgeText:    { fontSize: FONT_SIZES.sm, fontWeight: "700" },
+  headline:         { fontSize: FONT_SIZES["2xl"], fontWeight: "900", marginBottom: SPACING.sm, letterSpacing: -0.5 },
+  sub:              { fontSize: FONT_SIZES.sm, lineHeight: 20 },
+  fieldLabel:       { fontSize: FONT_SIZES.xs, fontWeight: "700", letterSpacing: 0.8, textTransform: "uppercase", marginBottom: SPACING.xs },
+  input:            { borderRadius: RADIUS.lg, borderWidth: 1.5, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, fontSize: FONT_SIZES.base },
+  vehicleGrid:      { flexDirection: "row", flexWrap: "wrap", gap: SPACING.sm, marginBottom: SPACING.lg, marginTop: SPACING.xs },
+  vehicleChip:      { paddingVertical: SPACING.sm, paddingHorizontal: SPACING.lg, borderRadius: RADIUS.full, borderWidth: 1.5 },
+  vehicleChipText:  { fontSize: FONT_SIZES.sm, fontWeight: "600" },
+  errorBox:         { backgroundColor: "#3F1212", borderRadius: RADIUS.lg, padding: SPACING.lg, marginBottom: SPACING.lg, borderWidth: 1, borderColor: "#7F1D1D" },
+  errorText:        { color: "#FCA5A5", fontSize: FONT_SIZES.sm, lineHeight: 20 },
+  link:             { alignItems: "center", paddingVertical: SPACING.sm },
+  linkText:         { fontSize: FONT_SIZES.sm },
 });

@@ -99,7 +99,7 @@ export function AuthProvider({ children }) {
     if (state.error) return; 
 
     if (!state.isSignedIn) {
-      router.replace("/(auth)/user-type");
+      router.replace("/(auth)/login");
       return;
     }
 
@@ -174,7 +174,7 @@ if (currentRole === "staff" || currentRole === ROLES.STAFF?.toLowerCase()) {
   const signOut = useCallback(async () => {
     await clearSession();
     dispatch({ type: "SIGN_OUT" });
-    router.replace("/(auth)/user-type");
+    router.replace("/(auth)/login");
   }, []);
 
   // ── Clear error ───────────────────────────────────────────────────────────

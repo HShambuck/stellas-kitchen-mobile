@@ -6,8 +6,10 @@ import { DARK_THEME, LIGHT_THEME, COLORS, FONT_SIZES, SPACING } from "../../cons
 
 function TabIcon({ focused, icon, label, theme }) {
   return (
-    <View style={[styles.tabIcon, focused && { backgroundColor: theme.pillActive }]}>
-      <Text style={[styles.icon, { color: focused ? COLORS.red : theme.textMuted }]}>{icon}</Text>
+    <View style={styles.tabIconWrap}>
+      <View style={[styles.iconPill, focused && { backgroundColor: theme.pillActive }]}>
+        <Text style={[styles.icon, { color: focused ? COLORS.red : theme.textMuted }]}>{icon}</Text>
+      </View>
       <Text style={[styles.tabLabel, { color: focused ? COLORS.red : theme.textMuted }]}>
         {label}
       </Text>
@@ -46,36 +48,16 @@ export default function RiderLayout() {
         tabBarHideOnKeyboard: true,
       }}
     >
-      <Tabs.Screen
-        name="queue"
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} icon="▦" label="Queue" theme={theme} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="active"
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} icon="◎" label="Active" theme={theme} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} icon="⚙" label="Profile" theme={theme} />
-          ),
-        }}
-      />
+      <Tabs.Screen name="queue"    options={{ tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon="▦" label="Queue"   theme={theme} /> }} />
+      <Tabs.Screen name="active"   options={{ tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon="◎" label="Active"  theme={theme} /> }} />
+      <Tabs.Screen name="settings" options={{ tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon="⚙" label="Profile" theme={theme} /> }} />
     </Tabs>
   );
 }
 
 const styles = StyleSheet.create({
-  tabIcon:  { alignItems: "center", justifyContent: "center", paddingVertical: SPACING.xs, paddingHorizontal: SPACING.sm, borderRadius: 999, minWidth: 80, gap: 2 },
-  icon:     { fontSize: 20, lineHeight: 24 },
-  tabLabel: { fontSize: FONT_SIZES.xs, fontWeight: "600", letterSpacing: 0.3 },
+  tabIconWrap: { alignItems: "center", justifyContent: "center", gap: 2, paddingTop: 2 },
+  iconPill:    { width: 52, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  icon:        { fontSize: 17 },  // rider only
+  tabLabel:    { fontSize: 10, fontWeight: "600", letterSpacing: 0.2 },
 });
