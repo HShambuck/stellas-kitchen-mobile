@@ -3,7 +3,6 @@ module.exports = function (api) {
   return {
     presets: [
       ["babel-preset-expo", { jsxImportSource: "nativewind" }],
-      "nativewind/babel", // 👈 It belongs here in presets, NOT in plugins!
     ],
     plugins: [
       "react-native-reanimated/plugin",
@@ -12,13 +11,13 @@ module.exports = function (api) {
         {
           root: ["./src"],
           alias: {
-            "@api": "./src/api",
+            "@api":        "./src/api",
             "@components": "./src/components",
-            "@constants": "./src/constants",
-            "@context": "./src/context"
-          }
-        }
-      ]
-    ]
+            "@constants":  "./src/constants",
+            "@context":    "./src/context",
+          },
+        },
+      ],
+    ],
   };
 };

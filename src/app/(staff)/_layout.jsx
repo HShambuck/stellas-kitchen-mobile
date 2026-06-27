@@ -1,3 +1,6 @@
+import { useEffect } from "react";
+import { router } from "expo-router";
+import { useAuth } from "../../context/AuthContext";
 import { Tabs } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -18,10 +21,18 @@ function TabIcon({ focused, emoji, label, theme }) {
 }
 
 export default function StaffLayout() {
+  const { isSignedIn } = useAuth();
   const insets = useSafeAreaInsets();
   const { isDark } = useTheme();
   const theme = isDark ? DARK_THEME : LIGHT_THEME;
   const tabBarHeight = 68 + insets.bottom;
+
+  // Redirect to login when session ends
+  useEffect(() => {
+    if (!isSignedIn) {
+      router.replace("/(auth)/login");
+    }
+  }, [isSignedIn]);
 
   return (
     <Tabs

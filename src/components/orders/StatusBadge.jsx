@@ -44,7 +44,7 @@ const STATUS_STYLE = {
  */
 export default function StatusBadge({ status, size = "md" }) {
   const style = STATUS_STYLE[status] || STATUS_STYLE[ORDER_STATUS.PENDING];
-  const label = ORDER_STATUS_LABELS[status] || status;
+  const label = ORDER_STATUS_LABELS[status] || status || "Unknown";
 
   return (
     <View style={[

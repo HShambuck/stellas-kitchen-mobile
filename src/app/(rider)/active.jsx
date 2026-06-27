@@ -115,7 +115,7 @@ export default function ActiveDelivery() {
   };
 
   return (
-    <SafeView variant={isDark ? "dark" : "light"}>
+    <SafeView variant={isDark ? "dark" : "light"} edges={["top", "left", "right"]}>
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}

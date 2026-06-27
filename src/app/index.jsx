@@ -7,14 +7,23 @@ import { COLORS, ROLES } from "../constants/theme";
 
 export default function Index() {
   const { isLoading, isSignedIn, user } = useAuth();
-  const [hasRegistered, setHasRegistered] = useState(null);
+  const [hasRegistered,  setHasRegistered]  = useState(null);
+  const [navReady,       setNavReady]       = useState(false);
 
   useEffect(() => {
-    SecureStore.getItemAsync("has_registered").then((val) => setHasRegistered(!!val));
+    SecureStore.getItemAsync("has_registered")
+      .then((val) => setHasRegistered(!!val))
+      .catch(()   => setHasRegistered(false));
   }, []);
 
-  // Always show splash until BOTH auth and storage are ready
-  if (isLoading || hasRegistered === null) {
+  // Give the navigator 150ms to fully mount before any Redirect fires
+  useEffect(() => {
+    const t = setTimeout(() => setNavReady(true), 150);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Wait for auth, storage check, AND navigator to be ready
+  if (isLoading || hasRegistered === null || !navReady) {
     return (
       <View style={styles.splash}>
         <ActivityIndicator color={COLORS.red} size="large" />
@@ -22,8 +31,6 @@ export default function Index() {
     );
   }
 
-  // Only redirect to auth screens on cold start (first render)
-  // Sign-out navigation is handled directly in AuthContext.signOut
   if (!isSignedIn) {
     return <Redirect href={hasRegistered ? "/(auth)/login" : "/(auth)/user-type"} />;
   }

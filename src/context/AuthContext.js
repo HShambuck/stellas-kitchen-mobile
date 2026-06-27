@@ -1,5 +1,4 @@
 import { ROLES } from "../constants/theme";
-import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import {
   createContext,
@@ -90,30 +89,6 @@ export function AuthProvider({ children }) {
     })();
   }, []);
 
-  // ── Route after session is known ──────────────────────────────────────────
-  useEffect(() => {
-    if (state.isLoading) return;
-
-    // 💡 Add this protection block: If there is an active error from a failed 
-    // login or registration attempt, do not forcefully kick the user out of their current screen!
-    if (state.error) return;
-    if (!state.isSignedIn) return;
-
-    // Convert the role string safely to lowercase before running validation comparisons
-    const currentRole = state.user?.role?.toLowerCase();
-
-    // Now matching against 'staff' and 'rider' constants will succeed flawlessly
-    if (currentRole === "staff" || currentRole === ROLES.STAFF?.toLowerCase()) {
-      router.replace("/(staff)/dashboard");
-    } else if (currentRole === "rider" || currentRole === ROLES.RIDER?.toLowerCase()) {
-      router.replace("/(rider)/queue");
-    } else {
-      // Catch-all safety loop
-      console.log("Routing failed. Logged role payload string was:", state.user?.role);
-      router.replace("/(auth)/login");
-    }
-  }, [state.isLoading, state.isSignedIn, state.user?.role, state.error]);
-
   // ── Persist helpers ───────────────────────────────────────────────────────
   const persistSession = async (token, user) => {
     await Promise.all([
@@ -141,6 +116,8 @@ export function AuthProvider({ children }) {
       const { token: _drop, ...user } = responseData; // The whole object contains _id, name, role, etc.
 
       await persistSession(token, user);
+      // Mark that this device has completed registration
+    await SecureStore.setItemAsync("has_registered", "true");
       dispatch({ type: "SIGN_IN", user, token });
     } catch (err) {
       dispatch({ type: "SET_ERROR", error: err.message });
@@ -168,10 +145,10 @@ export function AuthProvider({ children }) {
 
   // ── Sign Out ──────────────────────────────────────────────────────────────
   const signOut = useCallback(async () => {
-    await clearSession();
-    router.replace("/(auth)/login");
-    dispatch({ type: "SIGN_OUT" });
-  }, []);
+  await clearSession();
+  dispatch({ type: "SIGN_OUT" });
+  // Do NOT call router.replace here — index.jsx will redirect when isSignedIn becomes false
+}, []);
 
   // ── Clear error ───────────────────────────────────────────────────────────
   const clearError = useCallback(() => {

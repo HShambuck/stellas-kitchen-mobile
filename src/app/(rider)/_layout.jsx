@@ -1,3 +1,6 @@
+import { useEffect } from "react";
+import { router } from "expo-router";
+import { useAuth } from "../../context/AuthContext";
 import { Tabs } from "expo-router";
 import { Text, View, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -18,10 +21,17 @@ function TabIcon({ focused, icon, label, theme }) {
 }
 
 export default function RiderLayout() {
+  const { isSignedIn } = useAuth();
   const insets = useSafeAreaInsets();
   const { isDark } = useTheme();
   const theme = isDark ? DARK_THEME : LIGHT_THEME;
   const tabBarHeight = 68 + insets.bottom;
+
+  useEffect(() => {
+    if (!isSignedIn) {
+      router.replace("/(auth)/login");
+    }
+  }, [isSignedIn]);
 
   return (
     <Tabs
