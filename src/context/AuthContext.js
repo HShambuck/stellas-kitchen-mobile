@@ -97,13 +97,7 @@ export function AuthProvider({ children }) {
     // 💡 Add this protection block: If there is an active error from a failed 
     // login or registration attempt, do not forcefully kick the user out of their current screen!
     if (state.error) return;
-
-    if (!state.isSignedIn) {
-  SecureStore.getItemAsync("has_registered").then((val) => {
-    router.replace(val ? "/(auth)/login" : "/(auth)/user-type");
-  });
-  return;
-}
+    if (!state.isSignedIn) return;
 
     // Convert the role string safely to lowercase before running validation comparisons
     const currentRole = state.user?.role?.toLowerCase();
@@ -175,8 +169,8 @@ export function AuthProvider({ children }) {
   // ── Sign Out ──────────────────────────────────────────────────────────────
   const signOut = useCallback(async () => {
     await clearSession();
-    dispatch({ type: "SIGN_OUT" });
     router.replace("/(auth)/login");
+    dispatch({ type: "SIGN_OUT" });
   }, []);
 
   // ── Clear error ───────────────────────────────────────────────────────────

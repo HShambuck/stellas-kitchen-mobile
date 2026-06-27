@@ -66,13 +66,8 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}
           keyboardDismissMode="interactive"
         >
-          {/* Back */}
-          <TouchableOpacity onPress={() => router.back()} style={styles.back}>
-            <Text style={[styles.backText, { color: theme.textMuted }]}>← Back</Text>
-          </TouchableOpacity>
-
           {/* Hero */}
-          <Animated.View style={[styles.hero, { opacity: fadeIn, transform: [{ translateY: slideUp }] }]}>
+          <Animated.View style={[styles.hero, { opacity: fadeIn, transform: [{ translateY: slideUp }], paddingTop: SPACING["5xl"] }]}>
             <View style={styles.logo}>
               <Text style={styles.logoText}>SK</Text>
             </View>
@@ -187,8 +182,6 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   scroll: { flexGrow: 1, paddingHorizontal: SPACING["2xl"] },
-  back: { paddingTop: SPACING.xl, marginBottom: SPACING.lg },
-  backText: { fontSize: FONT_SIZES.base, fontWeight: "600" },
   hero: { alignItems: "center", marginBottom: SPACING["2xl"] },
   logo: { width: 64, height: 64, borderRadius: 20, backgroundColor: COLORS.red, alignItems: "center", justifyContent: "center", marginBottom: SPACING.md },
   logoText: { color: COLORS.white, fontSize: FONT_SIZES.xl, fontWeight: "900", letterSpacing: 2 },

@@ -126,12 +126,8 @@ export default function RegisterScreen() {
           keyboardDismissMode="interactive"
           showsVerticalScrollIndicator={false}
         >
-          <TouchableOpacity onPress={() => router.back()} style={styles.back}>
-            <Text style={[styles.backText, { color: theme.textMuted }]}>← Back</Text>
-          </TouchableOpacity>
-
           {/* Header */}
-          <View style={styles.header}>
+          <View style={[styles.header, { paddingTop: SPACING["2xl"] }]}>
             <View style={[styles.roleBadge, { backgroundColor: accentBg }]}>
               <Text style={[styles.roleBadgeText, { color: accent }]}>
                 {isStaff ? "🍳  Kitchen Staff" : "🏍️  Delivery Rider"}
@@ -203,8 +199,6 @@ export default function RegisterScreen() {
 
 const styles = StyleSheet.create({
   scroll:           { flexGrow: 1, paddingHorizontal: SPACING["2xl"] },
-  back:             { paddingTop: SPACING.xl, marginBottom: SPACING.lg },
-  backText:         { fontSize: FONT_SIZES.base, fontWeight: "600" },
   header:           { marginBottom: SPACING["2xl"] },
   roleBadge:        { alignSelf: "flex-start", paddingVertical: SPACING.xs, paddingHorizontal: SPACING.md, borderRadius: RADIUS.full, marginBottom: SPACING.lg },
   roleBadgeText:    { fontSize: FONT_SIZES.sm, fontWeight: "700" },

@@ -13,6 +13,7 @@ export default function Index() {
     SecureStore.getItemAsync("has_registered").then((val) => setHasRegistered(!!val));
   }, []);
 
+  // Always show splash until BOTH auth and storage are ready
   if (isLoading || hasRegistered === null) {
     return (
       <View style={styles.splash}>
@@ -21,19 +22,21 @@ export default function Index() {
     );
   }
 
+  // Only redirect to auth screens on cold start (first render)
+  // Sign-out navigation is handled directly in AuthContext.signOut
   if (!isSignedIn) {
     return <Redirect href={hasRegistered ? "/(auth)/login" : "/(auth)/user-type"} />;
   }
 
-  if (user?.role?.toLowerCase() === ROLES.STAFF) {
+  if (user?.role?.toLowerCase() === ROLES.STAFF?.toLowerCase()) {
     return <Redirect href="/(staff)/dashboard" />;
   }
 
-  if (user?.role?.toLowerCase() === ROLES.RIDER) {
+  if (user?.role?.toLowerCase() === ROLES.RIDER?.toLowerCase()) {
     return <Redirect href="/(rider)/queue" />;
   }
 
-  return <Redirect href="/(auth)/user-type" />;
+  return <Redirect href="/(auth)/login" />;
 }
 
 const styles = StyleSheet.create({
