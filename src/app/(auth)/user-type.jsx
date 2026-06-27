@@ -10,7 +10,7 @@ import { useTheme } from "../../context/ThemeContext";
 import {
   COLORS, DARK_THEME, FONT_SIZES, LIGHT_THEME,
   SPACING, RADIUS, BRAND, ROLES,
-} from "@constants/theme";
+} from "../../constants/theme";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 

@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { COLORS, FONT_SIZES, SPACING, RADIUS } from "@constants/theme";
+import { COLORS, FONT_SIZES, SPACING, RADIUS } from "../../constants/theme";
 import StatusBadge from "./StatusBadge";
 
 export default function OrderCard({ order, onPress, variant = "light" }) {
